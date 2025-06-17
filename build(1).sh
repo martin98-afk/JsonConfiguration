@@ -1,0 +1,1 @@
+pyinstaller --onefile --manifest app.manifest --windowed --add-data "icons;icons" --add-data "default.yaml;./" -i icons/logo.png main.py

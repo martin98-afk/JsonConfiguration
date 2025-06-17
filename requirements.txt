@@ -1,0 +1,11 @@
+PyQt5>=5.15.0
+httpx~=1.0.0b0
+
+PyYAML~=6.0.2
+numpy~=2.2.5
+pyqtgraph~=0.13.7
+pandas~=2.2.3
+Flask~=3.1.0
+loguru~=0.7.3
+tenacity~=9.1.2
+matplotlib~=3.10.1
