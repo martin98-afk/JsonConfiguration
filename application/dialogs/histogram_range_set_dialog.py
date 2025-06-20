@@ -86,7 +86,7 @@ class IntervalPartitionDialog(QDialog):
         ctrl.addStretch()
 
         # 划分开关按钮
-        self.btn_partition = QPushButton()
+        self.btn_partition = QPushButton("划分")
         self.btn_partition.setIcon(get_icon("钢笔"))
         self.btn_partition.setStyleSheet(get_button_style_sheet())
         self.btn_partition.setToolTip('开始划分')
@@ -95,7 +95,7 @@ class IntervalPartitionDialog(QDialog):
         ctrl.addWidget(self.btn_partition)
 
         # 清空断点
-        self.btn_clear = QPushButton()
+        self.btn_clear = QPushButton("清空")
         self.btn_clear.setIcon(get_icon("删除"))
         self.btn_clear.setStyleSheet(get_button_style_sheet())
         self.btn_clear.setToolTip('清空划分')
@@ -103,7 +103,7 @@ class IntervalPartitionDialog(QDialog):
         ctrl.addWidget(self.btn_clear)
 
         # 确认
-        self.btn_confirm = QPushButton()
+        self.btn_confirm = QPushButton("保存")
         self.btn_confirm.setIcon(get_icon("save"))
         self.btn_confirm.setStyleSheet(get_button_style_sheet())
         self.btn_confirm.setToolTip('确认划分')

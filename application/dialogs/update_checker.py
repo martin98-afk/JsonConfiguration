@@ -1,13 +1,12 @@
-from PyQt5.QtWidgets import QMessageBox, QProgressDialog, QWidget
-import requests
 import os
-import sys
 import subprocess
+import sys
 
+from PyQt5.QtWidgets import QMessageBox, QProgressDialog, QWidget
 from loguru import logger
 
 from application.utils.threading_utils import DownloadThread, AsyncUpdateChecker
-from application.utils.utils import resource_path
+from application.utils.utils import resource_path, get_button_style_sheet
 
 
 class UpdateChecker(QWidget):
@@ -87,13 +86,22 @@ class UpdateChecker(QWidget):
         )
         msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         msg_box.setDefaultButton(QMessageBox.Yes)
+        # 获取按钮并设置样式
+        yes_button = msg_box.button(QMessageBox.Yes)
+        no_button = msg_box.button(QMessageBox.No)
+
+        # 自定义按钮样式（参考 PyQt5 样式设置 [[7]]）
+        button_style = get_button_style_sheet()
+
+        yes_button.setStyleSheet(button_style)
+        no_button.setStyleSheet(button_style.replace("#4CAF50", "#f44336").replace("#45a049", "#e53935"))
         if msg_box.exec_() == QMessageBox.Yes:
             self._start_download(latest_release)
 
     def _start_download(self, latest_release):
         """开始下载更新包"""
         update_url = latest_release["assets"][0]["browser_download_url"]
-        self.update_path = f"参数配置工具v{latest_release['tag_name']}.exe"
+        self.update_path = f"参数配置工具-V{latest_release['tag_name']}.exe"
 
         # 创建进度条
         self.progress_dialog = QProgressDialog("正在下载更新...", "取消", 0, 100, self)

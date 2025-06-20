@@ -161,7 +161,7 @@ param-structure:
     children:
       时序库host:
         type: text
-        default: ''
+        default: 'trenddb-server'
       时序库版本:
         type: dropdown
         default: V4
@@ -176,10 +176,10 @@ param-structure:
         default: ''
       时序库用户名(V4不需要):
         type: text
-        default: ''
+        default: 'system'
       时序库密码(V4不需要):
         type: text
-        default: ''
+        default: 'luculent@123'
   新工况控制模式:
     type: dropdown
     default: 三个最近工况高频

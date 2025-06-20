@@ -1335,7 +1335,7 @@ class JSONEditor(QWidget):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
 
-    def gather_tags(self, data: dict = None, type: str = ""):
+    def gather_tags(self, data: dict = None, type: str = "") -> list:
         data = self.tree_to_dict() if data is None else data
         tags = []
         for k, v in data.items():

@@ -1,3 +1,5 @@
+import ctypes
+
 import pyqtgraph as pg
 from datetime import datetime
 from PyQt5.QtCore import Qt, QDateTime, QThreadPool
@@ -35,8 +37,15 @@ class TimeRangeDialog(QDialog):
         self.parent = parent
         self.default_ranges = self.load(current_text) or []
         self.setWindowTitle("⏱️ 时间范围选择器")
+        # 添加窗口标志
+        self.setWindowFlags(
+            Qt.Window
+            | Qt.WindowMinimizeButtonHint
+            | Qt.WindowMaximizeButtonHint
+            | Qt.WindowCloseButtonHint
+        )
         self.resize(1500, 800)
-        self.tags = parent.gather_tags() if parent else {}
+        self.tags = [tag.split('\n')[1] if '\n' in tag else tag for tag in parent.gather_tags()] if parent else []
         self._updating = False
         self.selected_ranges = []  # [(t0,t1),...]
         self.region_items = []  # [SelectableRegionItem,...]
@@ -71,7 +80,6 @@ class TimeRangeDialog(QDialog):
         self.chk_all = QCheckBox("全选/全不选", self)
         self.chk_all.stateChanged.connect(self._apply_chk_all)
         self.point_list = QListWidget(self)
-        self.point_list.setSelectionMode(QAbstractItemView.MultiSelection)
         self.point_list.itemChanged.connect(self._sync_chk_all)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -104,28 +112,28 @@ class TimeRangeDialog(QDialog):
         )
 
         # 添加、删除、确认按钮
-        manual = QPushButton()
+        manual = QPushButton("输入")
         manual.setIcon(get_icon("手动设置"))
         manual.setToolTip("手动选择时间范围")
         manual.clicked.connect(self._manual_region)
         manual.setStyleSheet(get_button_style_sheet())
-        self.btn_sel = QPushButton()
+        self.btn_sel = QPushButton("框选")
         self.btn_sel.setIcon(get_icon("框选"))
         self.btn_sel.setToolTip("框选时间范围")
         self.btn_sel.setCheckable(True)
         self.btn_sel.setStyleSheet(get_button_style_sheet())
         self.btn_sel.clicked.connect(self._toggled)
-        btn_add = QPushButton()
+        btn_add = QPushButton("确认")
         btn_add.setIcon(get_icon("勾号"))
         btn_add.setToolTip("添加当前时间范围")
         btn_add.setStyleSheet(get_button_style_sheet())
         btn_add.clicked.connect(self._add_current_region)
-        btn_delete = QPushButton()
+        btn_delete = QPushButton("删除")
         btn_delete.setIcon(get_icon("删除"))
         btn_delete.setToolTip("删除当前时间范围")
         btn_delete.setStyleSheet(get_button_style_sheet())
         btn_delete.clicked.connect(self._delete_selected_region)
-        btn_confirm = QPushButton()
+        btn_confirm = QPushButton("保存")
         btn_confirm.setIcon(get_icon("save"))
         btn_confirm.setToolTip("保存时间范围")
         btn_confirm.setStyleSheet(get_button_style_sheet())
@@ -242,7 +250,7 @@ class TimeRangeDialog(QDialog):
             self.parent.range_combo.setCurrentIndex(0)
 
         worker = Worker(
-            self.df.call_batch, [pt.split("\n")[0] for pt in pts], start, end, sample
+            self.df.call_batch, [pt.split("|")[0].strip() for pt in pts], start, end, sample
         )
         worker.signals.finished.connect(self._on_data_fetched_segment)
         QApplication.processEvents()
@@ -341,6 +349,17 @@ class TimeRangeDialog(QDialog):
         self.plot.region.setRegion([start_ts, end_ts])
         self.plot.region.show()
         self._add_current_region()
+
+    def nativeEvent(self, eventType, message):
+        if eventType == b"windows_generic_MSG":
+            msg = ctypes.wintypes.MSG.from_address(message.__int__())
+            if msg.message == 0x00A3:
+                if self.isMaximized():
+                    self.showNormal()
+                else:
+                    self.showMaximized()
+                return True, 0
+        return super().nativeEvent(eventType, message)
 
 
 if __name__ == "__main__":

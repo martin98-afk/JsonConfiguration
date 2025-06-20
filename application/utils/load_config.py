@@ -180,8 +180,9 @@ class ParamConfigLoader(QObject):
                 self._load_params(cfg.get("param-structure", {}))
                 self.param_templates = cfg.get("param-template", {})
                 self.tab_names = cfg.get("tab-names", {})
-                self.update_platform = cfg.get("version-control").get("版本管理平台", "gitee")
-                self.update_repo = cfg.get("version-control").get("项目名称", "dingmama123141/JsonConfiguration")
+                self.update_platform = cfg.get("version-control", {"版本管理平台": "gitee"}).get("版本管理平台")
+                self.update_repo = cfg.get("version-control", {"项目名称": "dingmama123141/JsonConfiguration"}).get(
+                    "项目名称")
             else:
                 logger.error(
                     "Configuration file not found: {}", self.param_definitions_path

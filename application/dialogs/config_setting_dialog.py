@@ -77,16 +77,6 @@ class ConfigSettingDialog(QDialog):
         self.save_btn.clicked.connect(self.save_config)
         tool_layout.addWidget(self.save_btn)
 
-        search_layout = QHBoxLayout()
-        self.search_edit = QLineEdit(placeholderText="搜索字段…")
-        self.search_btn = QPushButton()
-        self.search_btn.setIcon(get_icon("search"))
-        self.search_btn.setStyleSheet(get_button_style_sheet())
-        self.search_btn.clicked.connect(lambda: self.filter_tree(self.search_edit.text()))
-        self.search_edit.textChanged.connect(self.filter_tree)
-        search_layout.addWidget(self.search_edit)
-        search_layout.addWidget(self.search_btn)
-
         self.tree = DraggableTreeWidget()
         self.tree.setItemDelegate(TreeEditDelegate())
         self.tree.setHeaderLabels(["字段", "值"])
@@ -105,7 +95,6 @@ class ConfigSettingDialog(QDialog):
         self.button_layout = QHBoxLayout()
         self.button_layout.setSpacing(8)
         main_layout.addLayout(self.button_layout)  # Insert at the top
-        main_layout.addLayout(search_layout)
         main_layout.addWidget(self.tree)
         main_layout.addLayout(tool_layout)
 

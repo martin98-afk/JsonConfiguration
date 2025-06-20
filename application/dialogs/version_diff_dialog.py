@@ -34,6 +34,15 @@ class VersionDiffDialog(QDialog):
         parent=None,
     ):
         super().__init__(parent)
+        self.setModal(False)
+        self.setWindowModality(Qt.NonModal)
+        # 添加窗口标志
+        self.setWindowFlags(
+            Qt.Window
+            | Qt.WindowMinimizeButtonHint
+            | Qt.WindowMaximizeButtonHint
+            | Qt.WindowCloseButtonHint
+        )
         self.setWindowTitle("历史版本对比")
         self.setMinimumSize(1100, 650)
         # 动态加载 file_map
@@ -61,7 +70,7 @@ class VersionDiffDialog(QDialog):
         file_version_layout.setSpacing(6)  # 缩小间距
         file_version_widget.setLayout(file_version_layout)
 
-        file_label = QLabel("文件：")
+        file_label = QLabel("📁 文件：")
         file_label.setStyleSheet("font-size: 14px; font-weight: bold;")
         self.history_file_combo = QComboBox()
         self.history_file_combo.setFixedWidth(230)  # 更宽一点
@@ -72,7 +81,7 @@ class VersionDiffDialog(QDialog):
             self.update_version_selector
         )
 
-        version_label = QLabel("版本：")
+        version_label = QLabel("🕒 版本：")
         version_label.setStyleSheet(
             "font-size: 14px; font-weight: bold; margin-left: 8px;"
         )
@@ -112,6 +121,7 @@ class VersionDiffDialog(QDialog):
 
         self.to_current_btn = QPushButton()
         self.to_current_btn.setIcon(get_icon("右箭头"))
+        self.to_current_btn.setToolTip("应用到当前")
         self.to_current_btn.setStyleSheet(get_button_style_sheet(bg_color="#66b2ff"))
         self.to_current_btn.setFixedSize(40, 40)
         self.to_current_btn.clicked.connect(self.copy_left_to_right)
@@ -119,6 +129,7 @@ class VersionDiffDialog(QDialog):
 
         self.to_history_btn = QPushButton()
         self.to_history_btn.setIcon(get_icon("左箭头"))
+        self.to_history_btn.setToolTip("应用到历史")
         self.to_history_btn.setStyleSheet(get_button_style_sheet(bg_color="#a8e6cf"))
         self.to_history_btn.setFixedSize(40, 40)
         self.to_history_btn.clicked.connect(self.copy_right_to_left)
