@@ -5,6 +5,7 @@ from PyQt5.QtGui import QFont, QPalette
 from PyQt5.QtWidgets import QApplication
 
 from PyQt5.QtGui import QColor
+
 from application.utils.config_handler import load_config, save_history, save_config, HISTORY_PATH
 from application.json_editor import JSONEditor
 

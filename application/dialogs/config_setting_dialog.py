@@ -158,8 +158,8 @@ class ConfigSettingDialog(QDialog):
             self.button_group.addButton(btn)  # 添加到按钮组 [[7]]
             self.button_layout.addWidget(btn)
 
-        # 添加右侧拉伸保持左对齐
-        self.button_layout.addStretch()
+        # # 添加右侧拉伸保持左对齐
+        # self.button_layout.addStretch()
 
         # 默认选中第一个按钮
         if root.childCount() > 0:

@@ -1,7 +1,7 @@
 title: 能耗优化参数配置工具
 api-tools:
   prefix: http://172.16.134.122:8900
-  api-key: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6IjAwMiJ9.eyJ0ZW5hbnROYW0iOiLnp5_miLfnrqHnkIblhazlj7giLCJvcmdOYW1lIjoi5piG6ZKiIiwiaXNzIjoiU1lTIiwidXNyUm9sZSI6IkdHU0NHTCIsInNlbGVjdGVkT3JnIjoiMTg1ODc4MTAxMjU1MzYyOTY5NiIsImFkbWluRmxnIjoiMSIsIm9yZ0lkIjoiMTg1ODc5NjUzODkxNDkzMDY4OCIsInVzck5hbSI6Iuezu-e7n-euoeeQhuWRmCIsInRlbmFudE5vIjoiMSIsIndlYlNvY2tldElwIjoiZGVmYXVsdCIsImlhdCI6MTc1MDA2NzA0NCwia2F0IjoxNzUwMDY2MjU1ODQ0fQ.b9i3T69JJYD6Gec_pJCW_iLGx-OJlqwZwxLS6a8O-8g
+  api-key: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6IjAwMiJ9.eyJ0ZW5hbnROYW0iOiLnp5_miLfnrqHnkIblhazlj7giLCJvcmdOYW1lIjoi5piG6ZKiIiwiaXNzIjoiU1lTIiwidXNyUm9sZSI6IkdHU0NHTCIsInNlbGVjdGVkT3JnIjoiMTg1ODc4MTAxMjU1MzYyOTY5NiIsImFkbWluRmxnIjoiMSIsIm9yZ0lkIjoiMTg1ODc5NjUzODkxNDkzMDY4OCIsInVzck5hbSI6Iuezu-e7n-euoeeQhuWRmCIsInRlbmFudE5vIjoiMSIsIndlYlNvY2tldElwIjoiZGVmYXVsdCIsImlhdCI6MTc0OTc5NDIwMSwia2F0IjoxNzQ5Nzc0NDUwODM5fQ.rM7KBJ_UrLfriScotpdMNUspcR0xonyFM-d2NnWHLiw
   file_upload:
     type: file-upload
     upload_path: /rest/di/dataset/upload
@@ -53,10 +53,9 @@ param-structure:
         type: dropdown
         default: 频率
         options:
-        - 给定频率
+        - 频率
         - 风门开度
         - 统一频率
-        - 反馈频率
       偏移量:
         type: slider
         options:
@@ -263,11 +262,13 @@ param-template:
     - subchildren
     params_default:
     - {}
-patch-update:
-  url:
+version-control:
+  版本管理平台: gitee
+  项目名称: dingmama123141/JsonConfiguration
 tab-names:
   api-tools: 接口参数配置
   param-structure: 参数结构配置
   param-template: 参数初始化模板
+  version-control: 版本控制配置
   title: 工具标题设置
   tab-names: 配置名称设置

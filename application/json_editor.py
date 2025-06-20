@@ -38,6 +38,7 @@ from application.dialogs.range_list_dialog import RangeListDialog
 from application.dialogs.time_range_dialog import TimeRangeDialog
 from application.dialogs.time_selector_dialog import TimeSelectorDialog
 from application.dialogs.trend_analysis_dialog import TrendAnalysisDialog
+from application.dialogs.update_checker import UpdateChecker
 from application.dialogs.version_diff_dialog import VersionDiffDialog
 from application.utils.config_handler import (
     load_config,
@@ -124,14 +125,13 @@ class JSONEditor(QWidget):
         self.current_file = None
         self.untitled_count = 1
         self.active_input = None
-
         # 动态字体大小
         screen = QGuiApplication.primaryScreen()
         self.scale = int(screen.logicalDotsPerInch() / 96.0)  # 96 DPI 为基准
         base_font = QFont("微软雅黑")
         base_font.setPointSizeF(6 * self.scale)
         self.setFont(base_font)
-
+        self.updater = UpdateChecker(self)
         # 根据 scale 计算常用间距/圆角
         self.font_size = round(10 * self.scale)
 
@@ -146,8 +146,9 @@ class JSONEditor(QWidget):
         self.config.load_async()
 
     def on_config_loaded(self):
-        self.setWindowTitle(self.config.title)
-        self.status_bar.showMessage(f"配置已加载: {self.config.title}", 3000)
+        self.updater.change_repo(self.config.update_platform, self.config.update_repo)
+        self.updater.check_update()
+        self.setWindowTitle(f"{self.config.title} - V{self.updater.current_version}")
         if len(self.open_files) == 0: self.new_config()
 
     def init_ui(self):
@@ -1265,7 +1266,7 @@ class JSONEditor(QWidget):
         # 视图操作作为一级菜单项
         menu.addAction("展开全部", self.tree.expandAll)
         menu.addAction("折叠全部", self.tree.collapseAll)
-
+        menu.addAction("检查工具更新", self.updater.check_update)
         menu.exec_(self.tree.viewport().mapToGlobal(pos))
 
     def copy_item(self, item=None):

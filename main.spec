@@ -8,7 +8,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('icons', 'icons'), ('default.yaml', './')],
+    datas=[('icons', 'icons'), ('default.yaml', './'), ('versions.json', './')],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

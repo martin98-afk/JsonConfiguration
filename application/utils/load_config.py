@@ -33,6 +33,8 @@ class ParamConfigLoader(QObject):
 
     def _reset_config(self):
         # 还原所有配置
+        self.update_platform = ""
+        self.update_repo = ""
         self.param_structure = {}
         self.init_params = {}
         self.params_type = {}
@@ -178,6 +180,8 @@ class ParamConfigLoader(QObject):
                 self._load_params(cfg.get("param-structure", {}))
                 self.param_templates = cfg.get("param-template", {})
                 self.tab_names = cfg.get("tab-names", {})
+                self.update_platform = cfg.get("version-control").get("版本管理平台", "gitee")
+                self.update_repo = cfg.get("version-control").get("项目名称", "dingmama123141/JsonConfiguration")
             else:
                 logger.error(
                     "Configuration file not found: {}", self.param_definitions_path
