@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QMessageBox, QProgressDialog, QWidget
 from loguru import logger
 
 from application.utils.threading_utils import DownloadThread, AsyncUpdateChecker
-from application.utils.utils import resource_path, get_button_style_sheet
+from application.utils.utils import resource_path, get_button_style_sheet, get_icon
 
 
 class UpdateChecker(QWidget):
@@ -82,26 +82,26 @@ class UpdateChecker(QWidget):
         msg_box.setWindowTitle("版本更新")
         update_notes = latest_release.get("body", "无更新说明")  # 获取更新说明
         msg_box.setText(
-            f"发现新版本 {latest_release['tag_name']}，当前版本 {self.current_version}，是否更新？\n\n更新内容：{update_notes}"
+            f"发现新版本 {latest_release['tag_name']}，当前版本 {self.current_version}，是否更新？\n\n更新内容：\n{update_notes}"
         )
-        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg_box.setDefaultButton(QMessageBox.Yes)
-        # 获取按钮并设置样式
-        yes_button = msg_box.button(QMessageBox.Yes)
-        no_button = msg_box.button(QMessageBox.No)
 
-        # 自定义按钮样式（参考 PyQt5 样式设置 [[7]]）
-        button_style = get_button_style_sheet()
+        yes_btn = msg_box.addButton("更新", QMessageBox.AcceptRole)
+        yes_btn.setIcon(get_icon("版本更新"))
+        yes_btn.setStyleSheet(get_button_style_sheet(bg_color="#4db3ff"))
 
-        yes_button.setStyleSheet(button_style)
-        no_button.setStyleSheet(button_style.replace("#4CAF50", "#f44336").replace("#45a049", "#e53935"))
-        if msg_box.exec_() == QMessageBox.Yes:
+        no_btn = msg_box.addButton("取消", QMessageBox.RejectRole)
+        no_btn.setIcon(get_icon("叉号"))
+        no_btn.setStyleSheet(get_button_style_sheet(bg_color="#f0f0f0"))
+
+        msg_box.setDefaultButton(yes_btn)
+
+        if msg_box.exec_() == yes_btn:
             self._start_download(latest_release)
 
     def _start_download(self, latest_release):
         """开始下载更新包"""
         update_url = latest_release["assets"][0]["browser_download_url"]
-        self.update_path = f"参数配置工具-V{latest_release['tag_name']}.exe"
+        self.update_path = f"参数配置工具V{latest_release['tag_name']}.exe"
 
         # 创建进度条
         self.progress_dialog = QProgressDialog("正在下载更新...", "取消", 0, 100, self)
