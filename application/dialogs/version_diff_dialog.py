@@ -21,6 +21,7 @@ from loguru import logger
 from application.utils.config_handler import HISTORY_PATH
 from application.utils.data_format_transform import list2str
 from application.utils.utils import get_icon, get_button_style_sheet
+from application.widgets.draggable_tree_widget import DraggableTreeWidget
 
 
 class VersionDiffDialog(QDialog):
@@ -44,7 +45,7 @@ class VersionDiffDialog(QDialog):
             | Qt.WindowCloseButtonHint
         )
         self.setWindowTitle("历史版本对比")
-        self.setMinimumSize(1100, 650)
+        self.setMinimumSize(1500, 750)
         # 动态加载 file_map
         self.file_map = self.load_file_map()
         self.history_file_name = history_file_name
@@ -71,10 +72,10 @@ class VersionDiffDialog(QDialog):
         file_version_widget.setLayout(file_version_layout)
 
         file_label = QLabel("📁 文件：")
-        file_label.setStyleSheet("font-size: 14px; font-weight: bold;")
+        file_label.setStyleSheet("font-size: 18px; font-weight: bold;")
         self.history_file_combo = QComboBox()
-        self.history_file_combo.setFixedWidth(230)  # 更宽一点
-        self.history_file_combo.setStyleSheet("font-size: 14px; padding: 2px 6px;")
+        self.history_file_combo.setFixedWidth(250)  # 更宽一点
+        self.history_file_combo.setStyleSheet("font-size: 18px; padding: 2px 6px;")
         self.history_file_combo.addItems(self.file_map.keys())
         self.history_file_combo.setCurrentText(history_file_name)
         self.history_file_combo.currentIndexChanged.connect(
@@ -83,11 +84,11 @@ class VersionDiffDialog(QDialog):
 
         version_label = QLabel("🕒 版本：")
         version_label.setStyleSheet(
-            "font-size: 14px; font-weight: bold; margin-left: 8px;"
+            "font-size: 18px; font-weight: bold; margin-left: 8px;"
         )
         self.version_time_combo = QComboBox()
-        self.version_time_combo.setFixedWidth(170)  # 缩小一些
-        self.version_time_combo.setStyleSheet("font-size: 14px; padding: 2px 6px;")
+        self.version_time_combo.setFixedWidth(230)  # 缩小一些
+        self.version_time_combo.setStyleSheet("font-size: 18px; padding: 2px 6px;")
         self.version_time_combo.addItems(
             [item[0] for item in self.file_map[history_file_name]]
         )
@@ -105,12 +106,13 @@ class VersionDiffDialog(QDialog):
         body_layout = QHBoxLayout()
         body_layout.setSpacing(8)
 
-        self.history_tree = QTreeWidget()
+        self.history_tree = DraggableTreeWidget()
         self.history_tree.setHeaderLabels(["参数名", "值"])
+        self.history_tree.setHeaders()
         self.history_tree.header().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.history_tree.header().setSectionResizeMode(1, QHeaderView.Stretch)
         self.history_tree.setStyleSheet(
-            "QTreeWidget { background-color: #f8f8f8; border: 1px solid #ccc; font-size: 14px; }"
+            "QTreeWidget { background-color: #f8f8f8; border: 1px solid #ccc; font-size: 20px; }"
         )
         self.history_tree.itemClicked.connect(self.on_history_item_selected)
         body_layout.addWidget(self.history_tree)
@@ -141,12 +143,13 @@ class VersionDiffDialog(QDialog):
         center_widget.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
         body_layout.addWidget(center_widget)
 
-        self.current_tree = QTreeWidget()
+        self.current_tree = DraggableTreeWidget()
         self.current_tree.setHeaderLabels(["参数名", "值"])
+        self.current_tree.setHeaders()
         self.current_tree.header().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.current_tree.header().setSectionResizeMode(1, QHeaderView.Stretch)
         self.current_tree.setStyleSheet(
-            "QTreeWidget { background-color: #f8f8f8; border: 1px solid #ccc; font-size: 14px; }"
+            "QTreeWidget { background-color: #f8f8f8; border: 1px solid #ccc; font-size: 20px; }"
         )
         self.current_tree.itemClicked.connect(self.on_current_item_selected)
         body_layout.addWidget(self.current_tree)
@@ -169,6 +172,8 @@ class VersionDiffDialog(QDialog):
         main_layout.addLayout(bottom_layout)
 
         self.load_trees()
+        self.expand_all(self.history_tree)
+        self.expand_all(self.current_tree)
 
     def load_file_map(self):
         import json
@@ -253,7 +258,36 @@ class VersionDiffDialog(QDialog):
             if isinstance(value, dict):
                 self.fill_tree(tree_widget, value, other_data, path + [key], item)
 
+    def save_expanded_state(self, tree_widget):
+        expanded_paths = set()
+
+        def recurse(item):
+            path = item.data(0, Qt.UserRole)
+            if item.isExpanded():
+                expanded_paths.add(tuple(path))
+            for i in range(item.childCount()):
+                recurse(item.child(i))
+
+        for i in range(tree_widget.topLevelItemCount()):
+            recurse(tree_widget.topLevelItem(i))
+
+        return expanded_paths
+
+    def restore_expanded_state(self, tree_widget, expanded_paths):
+        def recurse(item):
+            path = tuple(item.data(0, Qt.UserRole))
+            item.setExpanded(path in expanded_paths)
+            for i in range(item.childCount()):
+                recurse(item.child(i))
+
+        for i in range(tree_widget.topLevelItemCount()):
+            recurse(tree_widget.topLevelItem(i))
+
     def load_trees(self):
+        # 先保存当前的展开状态
+        history_expanded = self.save_expanded_state(self.history_tree)
+        current_expanded = self.save_expanded_state(self.current_tree)
+
         self.history_tree.clear()
         self.current_tree.clear()
 
@@ -261,8 +295,9 @@ class VersionDiffDialog(QDialog):
         self.fill_tree(self.history_tree, self.history_config, self.current_config)
         self.fill_tree(self.current_tree, self.current_config, self.history_config)
 
-        self.expand_all(self.history_tree)
-        self.expand_all(self.current_tree)
+        # 恢复之前的展开状态
+        self.restore_expanded_state(self.history_tree, history_expanded)
+        self.restore_expanded_state(self.current_tree, current_expanded)
 
     def expand_all(self, tree_widget):
         for i in range(tree_widget.topLevelItemCount()):

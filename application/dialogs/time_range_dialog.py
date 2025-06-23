@@ -1,8 +1,11 @@
 import ctypes
+import re
+from collections import defaultdict
 
 import pyqtgraph as pg
 from datetime import datetime
-from PyQt5.QtCore import Qt, QDateTime, QThreadPool
+from PyQt5.QtCore import Qt, QDateTime, QThreadPool, QSize, QPropertyAnimation, QEvent
+from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
@@ -45,7 +48,7 @@ class TimeRangeDialog(QDialog):
             | Qt.WindowCloseButtonHint
         )
         self.resize(1500, 800)
-        self.tags = [tag.split('\n')[1] if '\n' in tag else tag for tag in parent.gather_tags()] if parent else []
+        self.tags =  parent.gather_tags(with_type=True) if parent else []
         self._updating = False
         self.selected_ranges = []  # [(t0,t1),...]
         self.region_items = []  # [SelectableRegionItem,...]
@@ -76,11 +79,86 @@ class TimeRangeDialog(QDialog):
         splitter = QSplitter(Qt.Horizontal, self)
         left = QWidget()
         lv = QVBoxLayout(left)
-        left.setMaximumWidth(700)
+        left.setMaximumWidth(1000)
         self.chk_all = QCheckBox("全选/全不选", self)
         self.chk_all.stateChanged.connect(self._apply_chk_all)
         self.point_list = QListWidget(self)
         self.point_list.itemChanged.connect(self._sync_chk_all)
+        # 在 _build_ui 中添加事件过滤器
+        self.point_list.viewport().installEventFilter(self)
+        self.point_list.setStyleSheet(
+            """
+                    QListWidget {
+                        border: 1px solid #e0e0e0;
+                        border-radius: 4px;
+                        outline: 0px;
+                    }
+                    QListWidget::item {
+                        padding: 6px 12px;
+                        margin: 1px 0;
+                        border-radius: 3px;
+                        color: #202020;
+                    }
+                    QListWidget::item:hover {
+                        background-color: #f5f5f5;
+                    }
+                    QListWidget::item:selected {
+                        background-color: #e6f7ff;
+                        color: #000000;
+                    }
+                    QListWidget::item:checked {
+                        color: #1890ff;
+                        font-weight: bold;
+                    }
+                    QCheckBox {
+                        color: #495057;
+                        font-size: 11px;
+                    }
+                    QScrollBar:vertical {
+                        border: none;
+                        background: #f8f9fa;
+                        width: 10px;
+                        margin: 0px;
+                    }
+        
+                    QScrollBar::handle:vertical {
+                        background: #adb5bd;
+                        border-radius: 5px;
+                        min-height: 30px;
+                    }
+        
+                    QScrollBar::handle:vertical:hover {
+                        background: #868e96;
+                    }
+        
+                    QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                        height: 0px;
+                    }
+        
+                    QScrollBar:horizontal {
+                        border: none;
+                        background: #f8f9fa;
+                        height: 10px;
+                        margin: 0px;
+                    }
+        
+                    QScrollBar::handle:horizontal {
+                        background: #adb5bd;
+                        border-radius: 5px;
+                        min-width: 30px;
+                    }
+        
+                    QScrollBar::handle:horizontal:hover {
+                        background: #868e96;
+                    }
+        
+                    QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                        width: 0px;
+                    }
+                """
+        )
+
+        self._init_signals()
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setWidget(self.point_list)
@@ -95,6 +173,27 @@ class TimeRangeDialog(QDialog):
         self.cmb_sample = QComboBox(self)
         for v in ["600", "2000", "5000"]:
             self.cmb_sample.addItem(v, int(v))
+        self.cmb_sample.setStyleSheet(
+            """
+            QComboBox {
+                padding: 4px 8px;
+                border: 1px solid #1890ff;
+                border-radius: 4px;
+                background-color: white;
+                color: black; /* 默认字体颜色 */
+            }
+            QComboBox:hover {
+                border-color: #40a9ff;
+                color: black; /* 鼠标悬浮时字体颜色 */
+            }
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+                width: 20px;
+                border-left: none;
+            }
+        """
+        )
         self.btn_apply = QPushButton()
         self.btn_apply.setIcon(get_icon("change"))
         self.btn_apply.setToolTip("更新图表")
@@ -149,9 +248,150 @@ class TimeRangeDialog(QDialog):
         rv.addWidget(self.plot)
         splitter.addWidget(left)
         splitter.addWidget(right)
-        splitter.setSizes([200, 1100])
+        splitter.setSizes([350, 1100])
         self.setLayout(QVBoxLayout())
         self.layout().addWidget(splitter)
+
+    def _init_signals(self):
+        """初始化信号连接"""
+        self.point_list.itemClicked.connect(self._handle_item_click)
+        self.point_list.itemDoubleClicked.connect(self._handle_item_double_click)
+        self.point_list.itemChanged.connect(self._handle_item_change)
+
+    def _handle_item_click(self, item):
+        if item.data(Qt.UserRole) == "group":
+            group = item.text()[2:]
+            self._toggle_group_selection(item, group)
+            return
+
+    def _handle_item_double_click(self, item):
+        if item.data(Qt.UserRole) == "group":
+            group = item.text()[2:]
+            self._toggle_group_expansion(item, group)
+            return
+        elif item.data(Qt.UserRole):
+            item.setCheckState(
+                Qt.Unchecked if item.checkState() == Qt.Checked else Qt.Checked
+            )
+            self._update_group_header_state(item.data(Qt.UserRole))
+
+    def _handle_item_change(self, item):
+        item_type = item.data(Qt.UserRole)
+        if item_type and item_type in self.group_items:
+            self._update_group_header_state(item_type)
+
+    def eventFilter(self, source, event):
+        if (
+            source == self.point_list.viewport()
+            and event.type() == QEvent.MouseButtonPress
+        ):
+            index = self.point_list.indexAt(event.pos())
+            if index.isValid():
+                item = self.point_list.item(index.row())
+                if item.data(Qt.UserRole) != "group":
+                    item.setCheckState(
+                        Qt.Unchecked if item.checkState() == Qt.Checked else Qt.Checked
+                    )
+                    return True
+        return super().eventFilter(source, event)
+
+    def _apply_chk_all(self):
+        if self._updating:
+            return
+        st = self.chk_all.checkState()
+        self._updating = True
+
+        for i in range(self.point_list.count()):
+            item = self.point_list.item(i)
+            if item.data(Qt.UserRole) not in ["group", None]:
+                item.setCheckState(st)
+
+        for group in self.group_items.values():
+            self._update_group_header_state(group.text()[2:])
+
+        self._updating = False
+
+    def _toggle_group_expansion(self, item, group):
+        row = self.point_list.row(item)
+        is_expanding = False
+        for i in range(row + 1, self.point_list.count()):
+            child = self.point_list.item(i)
+            if child.data(Qt.UserRole) == "group":
+                break
+            is_expanding = child.isHidden()
+            break
+
+        for i in range(row + 1, self.point_list.count()):
+            child = self.point_list.item(i)
+            if child.data(Qt.UserRole) == "group":
+                break
+            child.setHidden(not is_expanding)
+
+        # 更新符号
+        if is_expanding:
+            item.setText(f"▼ {group}")
+        else:
+            item.setText(f"▶ {group}")
+
+    def _toggle_group_selection(self, item, group):
+        row = self.point_list.row(item)
+        is_checked = item.checkState() == Qt.Checked
+
+        for i in range(row + 1, self.point_list.count()):
+            child = self.point_list.item(i)
+            if child.data(Qt.UserRole) == "group":
+                break
+            child.setCheckState(Qt.Checked if is_checked else Qt.Unchecked)
+
+    def _load_tags(self):
+        groups = defaultdict(list)
+        for t in self.tags:
+            type_name, name = t.split(":", 1) if ":" in t else ("其他", t)
+            name = name.split("\n")[1] if "\n" in name else name
+            groups[type_name].append(name)
+
+        self.point_list.clear()
+        self.group_items = {}
+
+        for group in sorted(groups):
+            header = QListWidgetItem(f"▼ {group}")
+            header.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+            header.setCheckState(Qt.Unchecked)
+            header.setData(Qt.UserRole, "group")
+            header.setFont(QFont("Segoe UI", 10, QFont.Bold))
+            header.setBackground(QColor("#f0f2f5"))
+            self.point_list.addItem(header)
+            self.group_items[group] = header
+
+            for name in groups[group]:
+                it = QListWidgetItem(f"　{name}")
+                it.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled | Qt.ItemIsSelectable)
+                it.setCheckState(Qt.Unchecked)
+                it.setData(Qt.UserRole, group)
+                self.point_list.addItem(it)
+
+    def _update_group_header_state(self, group):
+        """更新分组标题选中状态"""
+        header = self.group_items[group]
+        checked_count = 0
+        total_count = 0
+
+        row = self.point_list.row(header)
+        for i in range(row + 1, self.point_list.count()):
+            child = self.point_list.item(i)
+            if child.data(Qt.UserRole) == "group":  # 遇到下一个分组停止
+                break
+            total_count += 1
+            if child.checkState() == Qt.Checked:
+                checked_count += 1
+
+        # 更新分组标题状态
+        if checked_count == 0:
+            header.setCheckState(Qt.Unchecked)
+        elif checked_count == total_count:
+            header.setCheckState(Qt.Checked)
+        else:
+            header.setCheckState(Qt.PartiallyChecked)
 
     def _toggled(self, checked: bool):
         # 划分模式切换样式
@@ -168,22 +408,16 @@ class TimeRangeDialog(QDialog):
         self.end_time.setDateTime(now)
         self.start_time.setDateTime(now.addSecs(-12 * 3600))
 
-    def _load_tags(self):
-        self.point_list.clear()
-        for t in self.tags:
-            it = QListWidgetItem(t)
-            it.setFlags(it.flags() | Qt.ItemIsUserCheckable)
-            it.setCheckState(Qt.Unchecked)
-            self.point_list.addItem(it)
-
-    def _apply_chk_all(self):
-        if self._updating:
-            return
-        st = self.chk_all.checkState()
-        self._updating = True
-        for i in range(self.point_list.count()):
-            self.point_list.item(i).setCheckState(st)
-        self._updating = False
+    def _toggle_group(self, item):
+        # 判断是否是分组标题
+        group_text = item.text()[2:] if item.text().startswith("▶ ") else None
+        if group_text in self.group_items:
+            is_checked = item.checkState() == Qt.Checked
+            # 同步组内项
+            for i in range(self.point_list.count()):
+                it = self.point_list.item(i)
+                if it.data(Qt.UserRole) == group_text:
+                    it.setCheckState(Qt.Checked if is_checked else Qt.Unchecked)
 
     def _sync_chk_all(self, _):
         if self._updating:
@@ -235,24 +469,42 @@ class TimeRangeDialog(QDialog):
         # 首先禁用应用按钮，防止重复点击
         self.btn_apply.setEnabled(False)
         self.btn_apply.setIcon(get_icon("沙漏"))
-        pts = [
-            self.point_list.item(i).text()
-            for i in range(self.point_list.count())
-            if self.point_list.item(i).checkState() == Qt.Checked
-        ]
+
+        # 修正测点名称提取逻辑
+        pts = []
+        for i in range(self.point_list.count()):
+            item = self.point_list.item(i)
+            if (
+                item.data(Qt.UserRole) != "group" and
+                item.flags() & Qt.ItemIsUserCheckable
+                and item.checkState() == Qt.Checked
+            ):
+                # 提取原始测点名（去除缩进空格）
+                raw_name = item.text().strip()
+                pts.append(raw_name)
+
         sample = self.cmb_sample.currentData()
         start = self.start_time.dateTime().toPyDateTime()
         end = self.end_time.dateTime().toPyDateTime()
 
         # 更新时间范围显示
         if hasattr(self.parent, "range_combo") and self.parent.range_combo:
-            # 将索引重置为自定义
             self.parent.range_combo.setCurrentIndex(0)
 
         worker = Worker(
-            self.df.call_batch, [pt.split("|")[0].strip() for pt in pts], start, end, sample
+            self.df.call_batch,
+            [pt.split("|")[0].strip() for pt in pts],  # 确保原始数据标识符正确
+            start,
+            end,
+            sample,
         )
         worker.signals.finished.connect(self._on_data_fetched_segment)
+        worker.signals.error.connect(
+            lambda err: (
+                self.btn_apply.setEnabled(True),
+                self.btn_apply.setIcon(get_icon("change"))
+            )
+        )
         QApplication.processEvents()
         self.thread_pool.start(worker)
 
@@ -304,9 +556,18 @@ class TimeRangeDialog(QDialog):
         super().accept()
 
     def get_selected_time_ranges(self):
+        # 将时间序列进行排列
+        self.selected_ranges = sorted(self.selected_ranges, key=lambda x: x[0])
+        # 将有交集的时间集合合并
+        self.merged_selected_ranges = []
+        for t0, t1 in self.selected_ranges:
+            if self.merged_selected_ranges and self.merged_selected_ranges[-1][1] >= t0:
+                self.merged_selected_ranges[-1][1] = t1
+            else:
+                self.merged_selected_ranges.append([t0, t1])
         time_ranges = [
             (t0.strftime("%Y-%m-%d %H:%M:%S"), t1.strftime("%Y-%m-%d %H:%M:%S"))
-            for t0, t1 in self.selected_ranges
+            for t0, t1 in self.merged_selected_ranges
         ]
         return (
             "\n".join(["~".join(range) for range in time_ranges])

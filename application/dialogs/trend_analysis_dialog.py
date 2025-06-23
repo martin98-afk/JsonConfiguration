@@ -9,8 +9,7 @@ from PyQt5.QtWidgets import (
     QDialog,
     QVBoxLayout,
     QLineEdit,
-    QFrame,
-    QToolTip,
+    QFrame
 )
 from PyQt5.QtWidgets import (
     QHBoxLayout,
@@ -73,9 +72,6 @@ class TrendAnalysisDialog(QDialog):
         self.current_plot_type = 0  # 默认为曲线图
         self.setWindowTitle("趋势分析")
         self.resize(1600, 900)
-
-        # 设置应用程序级别样式
-        QApplication.setStyle(QStyleFactory.create("Fusion"))
 
         # 设置字体
         self.setFont(QFont("Microsoft YaHei", 10))
@@ -925,18 +921,6 @@ class TrendAnalysisDialog(QDialog):
                 # 显示添加成功的提示
                 point_name = pt[1].get("测点名", name)
                 point_desc = pt[1].get("描述", "")
-                tooltip_text = (
-                    f"已添加: {point_name}\n{point_desc if point_desc else ''}"
-                )
-                QToolTip.showText(
-                    self.left_table.mapToGlobal(
-                        self.left_table.visualItemRect(
-                            self.left_table.item(row, 0)
-                        ).bottomLeft()
-                    ),
-                    tooltip_text,
-                    self.left_table,
-                )
                 break
 
         if not found:
@@ -1425,16 +1409,6 @@ class TrendAnalysisDialog(QDialog):
             if ts is not None:
                 total_points += len(ts)
 
-        # 在状态栏或工具提示中显示统计信息
-        stats_msg = f"已加载 {len(valid_data)} 个测点，共 {total_points} 个数据点"
-        QToolTip.showText(
-            self.btn_apply.mapToGlobal(self.btn_apply.rect().bottomRight()),
-            stats_msg,
-            self.btn_apply,
-            self.btn_apply.rect(),
-            3000,
-        )
-
         # 根据当前选择的图表类型展示数据
         self._update_plots()
 
@@ -1770,13 +1744,6 @@ class TrendAnalysisDialog(QDialog):
 
         # 显示提示信息
         self.status_label.setText(marker_info)
-        QToolTip.showText(
-            self.mapToGlobal(self.trend_plot.pos() + QPoint(100, 100)),
-            marker_info + "<br>双击添加新标记，右键点击标记删除",
-            self,
-            QRect(),
-            2000,
-        )
 
     def _on_marker_removed(self, x_pos):
         """标记移除时的处理函数"""

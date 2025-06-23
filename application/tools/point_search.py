@@ -149,7 +149,7 @@ class PointSearcher(BaseTool):
                         point_dict["设备名"] = dev_name
                     point_list.append(point_dict)
         return point_list
-    def call(self) -> Dict[str, Dict[str, str]]:
+    def call(self, **kwargs) -> Dict[str, Dict[str, str]]:
         """
         并发搜索所有 dev_id 与所有 point_paths 组合的测点。
         若设备名称加载失败，会抛出异常。

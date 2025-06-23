@@ -3,6 +3,7 @@ import json
 import os
 import re
 from datetime import datetime
+from typing import Optional, Any
 
 from PyQt5 import sip
 from PyQt5.QtCore import (
@@ -131,7 +132,6 @@ class JSONEditor(QWidget):
         base_font = QFont("微软雅黑")
         base_font.setPointSizeF(6 * self.scale)
         self.setFont(base_font)
-        self.updater = UpdateChecker(self)
         # 根据 scale 计算常用间距/圆角
         self.font_size = round(10 * self.scale)
 
@@ -141,15 +141,29 @@ class JSONEditor(QWidget):
         self.setup_log_viwer()
         self.init_ui()
         # 配置参数加载
-        self.config = ParamConfigLoader()
+        self.load_config()
+
+    def load_config(self, config_path="default.yaml"):
+        if hasattr(self, "config"):
+            del self.config
+
+        self.config = ParamConfigLoader(config_path)
         self.config.params_loaded.connect(self.on_config_loaded)
         self.config.load_async()
 
     def on_config_loaded(self):
-        self.updater.change_repo(self.config.update_platform, self.config.update_repo)
-        self.updater.check_update()
-        self.setWindowTitle(f"{self.config.title} - V{self.updater.current_version}")
-        if len(self.open_files) == 0: self.new_config()
+        if hasattr(self, "updater"):
+            del self.updater
+        if len(self.open_files) == 0:
+            self.new_config()
+        if self.config.patch_info:
+            self.updater = UpdateChecker(self)
+            self.updater.check_update()
+            self.setWindowTitle(f"{self.config.title} - V{self.updater.current_version}")
+        else:
+            self.setWindowTitle(
+                f"{self.config.title}"
+            )
 
     def init_ui(self):
         # —— 高 DPI 缩放参数 ——
@@ -880,9 +894,10 @@ class JSONEditor(QWidget):
 
                 # 弹出划分对话框
                 dlg = IntervalPartitionDialog(
-                    df=self.config.get_tools_by_type("trenddb-fetcher")[0],
+                    dfs=self.config.get_tools_by_type("trenddb-fetcher"),
                     point_name=select_point,
                     current_text=current_value,
+                    type="partition",
                     parent=self
                 )
                 dlg.setWindowTitle(f"区间划分 - {param_name} - {select_point}")
@@ -929,9 +944,10 @@ class JSONEditor(QWidget):
 
                 # 弹出划分对话框
                 dlg = IntervalPartitionDialog(
-                    df=self.config.get_tools_by_type("trenddb-fetcher")[0],
+                    dfs=self.config.get_tools_by_type("trenddb-fetcher"),
                     point_name=select_point,
                     current_text=current_value,
+                    type="range",
                     parent=self
                 )
                 dlg.setWindowTitle(f"数值范围选择 - {param_name} - {select_point}")
@@ -1058,18 +1074,7 @@ class JSONEditor(QWidget):
                     border-radius: 4px;
                     font-size: 11pt;
                 }
-                QPushButton {
-                    padding: 6px 12px;
-                    background-color: #1890ff;
-                    border: none;
-                    border-radius: 4px;
-                    color: white;
-                    font-size: 11pt;
-                }
-                QPushButton:hover {
-                    background-color: #40a9ff;
-                }
-            """)
+            """ + get_button_style_sheet())
             dialog.resize(350, dialog.height())
 
             if dialog.exec_() == QDialog.Accepted:
@@ -1266,7 +1271,8 @@ class JSONEditor(QWidget):
         # 视图操作作为一级菜单项
         menu.addAction("展开全部", self.tree.expandAll)
         menu.addAction("折叠全部", self.tree.collapseAll)
-        menu.addAction("检查工具更新", self.updater.check_update)
+        if hasattr(self, "updater"):
+            menu.addAction("检查工具更新", self.updater.check_update)
         menu.exec_(self.tree.viewport().mapToGlobal(pos))
 
     def copy_item(self, item=None):
@@ -1335,15 +1341,35 @@ class JSONEditor(QWidget):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
 
-    def gather_tags(self, data: dict = None, type: str = "") -> list:
+    def gather_tags(self,
+                    data: dict = None,
+                    tag_name: str="测点名",
+                    type: Any = "",
+                    with_type: bool=False) -> list:
+        """
+        将配置文件中的配置参数名称进行提取
+        :param data: 待提取配置文件
+        :param tag_name: 标签名，默认为测点名
+        :param type: 标签类型，比如：控制参数、目标参数。。。
+        :param with_type: 提取结果是否带标签信息
+        :return:
+        """
         data = self.tree_to_dict() if data is None else data
+
         tags = []
         for k, v in data.items():
-            if len(type) > 0 and type not in k: continue
+            if len(type) > 0 and k not in type: continue
             if isinstance(v, dict):
-                tags += self.gather_tags(v)
-            elif k == '测点名' and len(v) > 0:
+                new_tags = self.gather_tags(v)
+                tags.extend(
+                    [f"{k}:{tag}" for tag in new_tags]
+                    if with_type
+                    else new_tags
+                )
+            elif k == tag_name and len(v) > 0:
                 tags.append(v)
+                return tags
+
         return tags
 
     def dropEvent(self, event):

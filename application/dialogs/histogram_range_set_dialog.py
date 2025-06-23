@@ -1,4 +1,5 @@
 import re
+from typing import List
 
 import numpy as np
 import pyqtgraph as pg
@@ -8,6 +9,7 @@ from PyQt5.QtWidgets import (
     QPushButton, QDateTimeEdit, QLabel, QDoubleSpinBox, QComboBox, QMenu, QToolTip
 )
 
+from application.tools.jenks_breakpoint import JenksBreakpoint
 from application.utils.threading_utils import Worker
 from application.utils.utils import styled_dt, get_icon, get_button_style_sheet
 from application.widgets.draggable_lines import DraggableLine
@@ -21,32 +23,28 @@ class IntervalPartitionDialog(QDialog):
     - 动态连接/断开 sigMouseClicked
     """
 
-    def __init__(self, df, point_name: str, current_text: str = "", parent=None):
+    def __init__(self, dfs, point_name: str, current_text: str = "", type: str = "range", parent=None):
         super().__init__(parent)
-        self.setWindowTitle('划分区间')
+        if type not in {"range", "partition"}:
+            raise ValueError("type must be 'range' or 'partition'")
+
+        self.type = type
+        self.dfs = dfs
+        self.point_name = point_name
+        self.cut_lines: List[DraggableLine] = []
+        self.bar_item = None
+        self.current_data: np.ndarray | None = None  # 最近一次载入的 y 值
+        self.thread_pool = QThreadPool.globalInstance()
+
+        self.setWindowTitle("划分区间")
         self.resize(1000, 650)
 
-        self.df = df
-        self.point_name = point_name
-        self.thread_pool = QThreadPool.globalInstance()
-        self.cut_lines = []
-        self.bar_item = None
         self._build_ui()
         self._init_time_range()
         QTimer.singleShot(0, self.update_histogram_async)
-        # 预加载历史断点
+
         if current_text:
-            for line in current_text.splitlines():
-                parts = [item.strip() for item in line.split(' ~ ')]
-                if len(parts) == 2:
-                    try:
-                        if re.match(r'^[+-]?(?:\d+\.\d*|\.\d+|\d+)$', parts[0]):
-                            start = float(parts[0])
-                            self._add_cut_line(start, initial=True)
-                    except ValueError:
-                        continue
-            if re.match(r'^[+-]?(?:\d+\.\d*|\.\d+|\d+)$', parts[1]):
-                self._add_cut_line(float(parts[1]), initial=True)
+            self._restore_breakpoints(current_text)
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
@@ -65,7 +63,28 @@ class IntervalPartitionDialog(QDialog):
         self.cmb_sample = QComboBox(self)
         for v in (600, 2000, 5000):
             self.cmb_sample.addItem(str(v), v)
-        self.cmb_sample.setCurrentIndex(0)
+        self.cmb_sample.setCurrentIndex(1)
+        self.cmb_sample.setStyleSheet(
+            """
+            QComboBox {
+                padding: 4px 8px;
+                border: 1px solid #1890ff;
+                border-radius: 4px;
+                background-color: white;
+                color: black; /* 默认字体颜色 */
+            }
+            QComboBox:hover {
+                border-color: #40a9ff;
+                color: black; /* 鼠标悬浮时字体颜色 */
+            }
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+                width: 20px;
+                border-left: none;
+            }
+        """
+        )
         ctrl.addWidget(self.cmb_sample)
 
         # 分箱宽度
@@ -85,6 +104,13 @@ class IntervalPartitionDialog(QDialog):
         ctrl.addWidget(self.btn_apply)
         ctrl.addStretch()
 
+        # 添加ai按钮，引入机器学习算法自动划分断点
+        self.ai_partition = QPushButton("划分")
+        self.ai_partition.setIcon(get_icon("AI"))
+        self.ai_partition.setStyleSheet(get_button_style_sheet())
+        self.ai_partition.setToolTip('AI智能划分')
+        self.ai_partition.clicked.connect(self._on_ai_clicked)
+        ctrl.addWidget(self.ai_partition)
         # 划分开关按钮
         self.btn_partition = QPushButton("划分")
         self.btn_partition.setIcon(get_icon("钢笔"))
@@ -122,6 +148,17 @@ class IntervalPartitionDialog(QDialog):
         self.end_dt.setDateTime(now)
         self.start_dt.setDateTime(now.addDays(-12))
 
+    def _restore_breakpoints(self, text: str):
+        """根据保存的文本恢复断点"""
+        for line in text.splitlines():
+            parts = [p.strip() for p in line.split(' ~ ')]
+            if len(parts) == 2 and all(re.match(r'^[+-]?(?:\d+\.\d*|\.\d+|\d+)$', p) for p in parts):
+                try:
+                    self._add_cut_line(float(parts[0]), initial=True)
+                    self._add_cut_line(float(parts[1]), initial=True)
+                except ValueError:
+                    continue
+
     def _on_partition_toggled(self, checked: bool):
         # 划分模式切换样式
         self.btn_partition.setStyleSheet(
@@ -138,51 +175,86 @@ class IntervalPartitionDialog(QDialog):
             except TypeError:
                 pass
 
+    def _on_ai_clicked(self):
+        if self.current_data is None or len(self.current_data) == 0:
+            QToolTip.showText(self.ai_partition.mapToGlobal(QPoint(0, 0)), "请先刷新并载入数据")
+            return
+
+        self.ai_partition.setEnabled(False)
+
+        # Worker 异步计算 AI 断点
+        worker = Worker(self._compute_ai_breaks, self.current_data.copy(), self.type)
+        worker.signals.finished.connect(self._on_ai_finished)
+        worker.signals.error.connect(self._reset_ai_btn)
+        self.thread_pool.start(worker)
+
+    def _compute_ai_breaks(self, data: np.ndarray, type_: str):
+        if type_ == "partition":
+            jenks_tool = JenksBreakpoint()
+            # 忽略首尾
+            return jenks_tool.call(data)
+        else:
+            # ───── 剔除离群值后取 min/max ─────
+            q1, q3 = np.percentile(data, [25, 75])
+            iqr = q3 - q1
+            lower, upper = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+            trimmed = data[(data >= lower) & (data <= upper)]
+            if trimmed.size == 0:  # 极端情况全部被过滤
+                trimmed = data
+            return [float(trimmed.min()), float(trimmed.max())]
+
+    def _on_ai_finished(self, breaks):
+        self._reset_ai_btn()
+        self._clear_all_lines()
+        for x in breaks:
+            self._add_cut_line(float(x))
+            self.plot.addItem(self.cut_lines[-1])
+
+    def _reset_ai_btn(self, *args):
+        # *args absorbs possible error tuple
+        self.ai_partition.setEnabled(True)
+
     def update_histogram_async(self):
         self.btn_apply.setEnabled(False)
         self.btn_apply.setIcon(get_icon("沙漏"))
         start = self.start_dt.dateTime().toPyDateTime()
         end = self.end_dt.dateTime().toPyDateTime()
         sample = self.cmb_sample.currentData()
-        worker = Worker(self.df.call, self.point_name, start, end, sample)
+        worker = Worker(self.dfs, self.point_name, start, end, sample, policy="update")
         worker.signals.finished.connect(self._on_data_fetched)
-        worker.signals.error.connect(self._reset_btn)
+        worker.signals.error.connect(self._reset_apply_btn)
         self.thread_pool.start(worker)
 
-    def _reset_btn(self):
+    def _reset_apply_btn(self):
         self.btn_apply.setEnabled(True)
         self.btn_apply.setIcon(get_icon("change"))
 
     def _on_data_fetched(self, data):
-        """接收数据后绘制直方图并重新添加所有断点线"""
-        # 清空画布
         if self.bar_item:
             self.plot.removeItem(self.bar_item)
 
-        # 获取数据
         ts, ys = data.get(self.point_name, (None, None))
-        # 修复：避免对 ndarray 使用布尔判断
         if ys is None or len(ys) == 0:
+            self.current_data = None
+            self._reset_apply_btn()
             return
 
         arr = np.asarray(ys)
+        self.current_data = arr
+
+        w = self.spin_bin.value()
         mn, mx = arr.min(), arr.max()
         if mn == mx:
-            mn -= 0.1
-            mx += 0.1
-        w = self.spin_bin.value()
+            mn, mx = mn - 0.1, mx + 0.1
         bins = np.arange(mn, mx + w, w)
         y, x = np.histogram(arr, bins=bins)
         self.bar_item = pg.BarGraphItem(x=x[:-1], height=y, width=w, brush="blue")
         self.plot.addItem(self.bar_item)
 
-        self.btn_apply.setEnabled(True)
-        self.btn_apply.setIcon(get_icon("change"))
+        self._reset_apply_btn()
 
     def _add_cut_line(self, x: float, initial=False):
-        ln = DraggableLine(
-            x, pen=pg.mkPen("r", style=Qt.DashLine, width=2), movable=True
-        )
+        ln = DraggableLine(x)
         ln.setZValue(10)  # 设置较高的Z值
         self.cut_lines.append(ln)
         if initial:

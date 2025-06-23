@@ -1,6 +1,7 @@
-PyQt5>=5.15.0
+PyQt5
 httpx~=1.0.0b0
-
+aiohttp
+requests
 PyYAML~=6.0.2
 numpy~=2.2.5
 pyqtgraph~=0.13.7
@@ -9,3 +10,7 @@ Flask~=3.1.0
 loguru~=0.7.3
 tenacity~=9.1.2
 matplotlib~=3.10.1
+pyinstaller
+scipy
+kneed
+jenkspy

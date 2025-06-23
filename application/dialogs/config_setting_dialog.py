@@ -208,8 +208,7 @@ class ConfigSettingDialog(QDialog):
                     data = yaml.safe_load(f) or {}
                 self.tree.clear()
                 self.build_tree(data)
-                self.parent.config.param_definitions_path = path
-                self.parent.config.load_async()
+                self.parent.load_config(path)
                 QMessageBox.information(self, "导入成功", f"成功导入配置文件：{os.path.basename(path)}")
             except Exception as e:
                 QMessageBox.critical(self, "导入失败", f"导入配置失败：{e}")

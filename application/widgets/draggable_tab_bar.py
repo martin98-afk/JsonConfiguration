@@ -423,38 +423,6 @@ class DraggableTabBar(QWidget, QObject):
         editor.returnPressed.connect(finish)
         self._active_rename = (btn, finish)
 
-    def mousePressEvent(self, event):
-        # 点击其他区域时，先结束重命名
-        self._finalize_inline_rename()
-        self.drag_start_position = event.pos()
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event):
-        # 如果鼠标移动距离超过阈值，考虑开始拖动
-        if not hasattr(self, "drag_start_position"):
-            return
-
-        if (event.pos() - self.drag_start_position).manhattanLength() < 8:
-            return
-
-        for i in range(self.tabs_layout.count()):
-            container = self.tabs_layout.itemAt(i).widget()
-            if not container:
-                continue
-
-            tab_rect = container.geometry()
-            if tab_rect.contains(self.drag_start_position):
-                drag = QDrag(self)
-                mime_data = QMimeData()
-                mime_data.setText(str(i))
-                drag.setMimeData(mime_data)
-
-                # 添加拖拽样式反馈
-                container.setStyleSheet("background: #e6f7ff;")  # 临时高亮
-                drag.exec_(Qt.MoveAction)
-                container.setStyleSheet("background: transparent;")
-                break
-
     def _finalize_inline_rename(self):
         if self._active_rename:
             btn, finish = self._active_rename
@@ -544,15 +512,15 @@ class DraggableTabBar(QWidget, QObject):
 
             save_btn = box.addButton("保存", QMessageBox.AcceptRole)
             save_btn.setIcon(get_icon("保存"))
-            save_btn.setStyleSheet(get_button_style_sheet(bg_color="#4db3ff"))
+            save_btn.setStyleSheet(get_button_style_sheet())
 
             discard_btn = box.addButton("不保存", QMessageBox.DestructiveRole)
             discard_btn.setIcon(get_icon("不保存"))
-            discard_btn.setStyleSheet(get_button_style_sheet(bg_color="#ff8080"))
+            discard_btn.setStyleSheet(get_button_style_sheet())
 
             cancel_btn = box.addButton("取消", QMessageBox.RejectRole)
             cancel_btn.setIcon(get_icon("取消"))
-            cancel_btn.setStyleSheet(get_button_style_sheet(bg_color="#f0f0f0"))
+            cancel_btn.setStyleSheet(get_button_style_sheet())
 
             box.exec_()
             clicked = box.clickedButton()
@@ -562,51 +530,3 @@ class DraggableTabBar(QWidget, QObject):
                 self.parent.close_file(name)
             elif clicked == discard_btn:
                 self.parent.close_file(name)
-
-    def dragEnterEvent(self, event):
-        if event.mimeData().hasText():
-            event.acceptProposedAction()
-
-    def dropEvent(self, event):
-        if not event.mimeData().hasText():
-            return
-
-        # 获取源标签索引
-        from_index = int(event.mimeData().text())
-
-        # 找到目标索引位置
-        drop_pos = event.pos()
-        to_index = -1
-
-        # 遍历所有标签，查找目标位置
-        for i in range(self.tabs_layout.count()):
-            container = self.tabs_layout.itemAt(i).widget()
-            if not container:
-                continue
-            tab_rect = container.geometry()
-            # 根据鼠标在标签上的水平位置决定插入位置
-            if tab_rect.contains(drop_pos):
-                # 更精确的位置判断
-                if drop_pos.x() < tab_rect.left() + tab_rect.width() * 0.3:
-                    to_index = i  # 靠近左侧，插入到当前标签前
-                else:
-                    to_index = i + 1  # 靠近右侧，插入到当前标签后
-                break
-
-        # 如果没有找到目标位置，且放在了标签栏的最右侧，则放到最后
-        if to_index == -1 and drop_pos.x() > self.tabs_container.geometry().right():
-            to_index = self.tabs_layout.count() - 1  # 考虑末尾的伸缩项
-
-        # 确保索引有效
-        if from_index != to_index and to_index != -1 and from_index != -1:
-            # 移动标签
-            item = self.tabs_layout.takeAt(from_index)
-            container = item.widget()
-            if container:
-                if to_index > from_index:
-                    to_index -= 1
-
-                # 插入时保持布局正确
-                self.tabs_layout.insertWidget(to_index, container)
-                self.tabs_layout.update()
-                event.acceptProposedAction()

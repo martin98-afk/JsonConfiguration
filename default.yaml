@@ -161,7 +161,7 @@ param-structure:
     children:
       时序库host:
         type: text
-        default: 'trenddb-server'
+        default: ''
       时序库版本:
         type: dropdown
         default: V4
@@ -176,10 +176,10 @@ param-structure:
         default: ''
       时序库用户名(V4不需要):
         type: text
-        default: 'system'
+        default: ''
       时序库密码(V4不需要):
         type: text
-        default: 'luculent@123'
+        default: ''
   新工况控制模式:
     type: dropdown
     default: 三个最近工况高频
@@ -263,8 +263,12 @@ param-template:
     params_default:
     - {}
 version-control:
-  版本管理平台: gitee
-  项目名称: dingmama123141/JsonConfiguration
+  版本管理方式: gitee
+  gitee:
+    项目名称: dingmama123141/JsonConfiguration
+    令牌: 577df5e6829a600271587e1af4793fb7
+  github:
+    项目名称: martin98-afk/JsonConfiguration
 tab-names:
   api-tools: 接口参数配置
   param-structure: 参数结构配置

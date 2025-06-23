@@ -10,7 +10,7 @@ from application.base import BaseTool
 class TrenddbFetcher(BaseTool):
 
     def __init__(
-        self, base_url: str, api_key: str, path: str, max_workers=10, **kwargs
+            self, base_url: str, api_key: str, path: str, max_workers=10, **kwargs
     ):
         super().__init__()
         self.base_url = base_url
@@ -19,11 +19,12 @@ class TrenddbFetcher(BaseTool):
         self.max_workers = max_workers
 
     def call(
-        self,
-        tag_name: str,
-        start_time: datetime,
-        end_time: datetime,
-        data_num: int = 2000,
+            self,
+            tag_name: str,
+            start_time: datetime,
+            end_time: datetime,
+            data_num: int = 2000,
+            **kwargs
     ) -> dict[str, Tuple[np.ndarray, np.ndarray]]:
         """从API获取数据"""
         params = {
@@ -58,11 +59,12 @@ class TrenddbFetcher(BaseTool):
             return {}
 
     def call_batch(
-        self,
-        tag_names: List[str],
-        start_time: datetime,
-        end_time: datetime,
-        data_num: int = 2000,
+            self,
+            tag_names: List[str],
+            start_time: datetime,
+            end_time: datetime,
+            data_num: int = 2000,
+            **kwargs
     ) -> Dict[str, Tuple[np.ndarray, np.ndarray]]:
         """
         单次请求批量获取多个测点的时序数据

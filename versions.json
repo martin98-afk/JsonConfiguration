@@ -1,54 +1,78 @@
 [
-    {
-        "version": "1.0.4",
-        "publishDate": "2025-06-19 18:43",
-        "forceUpdate": true,
-        "publishNotes": [
-            "1. 优化配置工具更新检查逻辑；2. 增加更新日志说明； 3. 下载取消程序卡死问题解决"
-        ]
-    },{
-        "version": "1.0.3",
-        "publishDate": "2025-06-17 16:33",
-        "forceUpdate": true,
-        "publishNotes": [
-            "去除更新按钮，直接改成更新配置以及第一次打开时检查是否有版本更新，同时连接平台失败改为在状态栏和日志栏输出，不弹出错误框"
-        ]
-    },{
-        "version": "1.0.2",
-        "publishDate": "2025-06-17 15:33",
-        "forceUpdate": true,
-        "publishNotes": [
-            "增加gitee版本更新方法"
-        ]
-    },{
-        "version": "1.0.1",
-        "publishDate": "2025-06-17 14:45",
-        "forceUpdate": true,
-        "publishNotes": [
-            "测试版本更新效果"
-        ]
-    },
-    {
-        "version": "1.0.0",
-        "publishDate": "2025-06-17 14:31",
-        "forceUpdate": true,
-        "publishNotes": [
-            "feat(application): 添加版本更新功能并优化相关模块",
-            "- 新增 UpdateChecker 类，用于检查和执行版本更新",
-            "- 在主界面添加版本更新按钮",
-            "- 优化日志显示和处理逻辑",
-            "- 添加重新上线功能",
-            "- 修复一些 UI 相关的问题"
-        ]
-    },
-    {
-        "version": "0.9.0",
-        "publishDate": "2025-06-17 10:14",
-        "forceUpdate": true,
-        "publishNotes": [
-            "初始版本",
-            "1. 支持联网自动更新版本",
-            "2. 优化用户使用体验"
-        ]
-    }
+  {
+    "version": "1.0.6",
+    "publishDate": "2025-06-22 11:51",
+    "forceUpdate": true,
+    "publishNotes": [
+      "refactor(application): 重构下载线程并更新项目配置",
+      "- 重构 DownloadThread 类，使用 requests替代 aiohttp，简化代码结构",
+      "- 更新项目配置，包括 Python SDK 和依赖库版本"
+    ]
+  },
+  {
+    "version": "1.0.5",
+    "publishDate": "2025-06-21 18:21",
+    "forceUpdate": true,
+    "publishNotes": [
+      "feat(application): 优化配置工具功能和界面,",
+      "- 添加版本号为 V2.0.1",
+      "- 全局设置双击间隔为 300 毫秒",
+      "- 应用程序级别设置 Fusion 样式\n- 移除配置设置对话框中的搜索功能\n- 优化直方图范围设置对话框的样式\n- 更新时间范围对话框，增加分组功能和改进交互\n-趋势分析对话框中移除不必要的提示信息\n- 更新检查器中优化版本更新提示界面\n- 历史版本对比对话框中调整界面布局和样式,"
+    ]
+  },
+  {
+    "version": "1.0.4",
+    "publishDate": "2025-06-19 18:43",
+    "forceUpdate": true,
+    "publishNotes": [
+      "1. 优化配置工具更新检查逻辑；2. 增加更新日志说明； 3. 下载取消程序卡死问题解决"
+    ]
+  },
+  {
+    "version": "1.0.3",
+    "publishDate": "2025-06-17 16:33",
+    "forceUpdate": true,
+    "publishNotes": [
+      "去除更新按钮，直接改成更新配置以及第一次打开时检查是否有版本更新，同时连接平台失败改为在状态栏和日志栏输出，不弹出错误框"
+    ]
+  },
+  {
+    "version": "1.0.2",
+    "publishDate": "2025-06-17 15:33",
+    "forceUpdate": true,
+    "publishNotes": [
+      "增加gitee版本更新方法"
+    ]
+  },
+  {
+    "version": "1.0.1",
+    "publishDate": "2025-06-17 14:45",
+    "forceUpdate": true,
+    "publishNotes": [
+      "测试版本更新效果"
+    ]
+  },
+  {
+    "version": "1.0.0",
+    "publishDate": "2025-06-17 14:31",
+    "forceUpdate": true,
+    "publishNotes": [
+      "feat(application): 添加版本更新功能并优化相关模块",
+      "- 新增 UpdateChecker 类，用于检查和执行版本更新",
+      "- 在主界面添加版本更新按钮",
+      "- 优化日志显示和处理逻辑",
+      "- 添加重新上线功能",
+      "- 修复一些 UI 相关的问题"
+    ]
+  },
+  {
+    "version": "0.9.0",
+    "publishDate": "2025-06-17 10:14",
+    "forceUpdate": true,
+    "publishNotes": [
+      "初始版本",
+      "1. 支持联网自动更新版本",
+      "2. 优化用户使用体验"
+    ]
+  }
 ]

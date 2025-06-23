@@ -12,7 +12,7 @@ from application.utils.utils import resource_path, get_button_style_sheet, get_i
 class UpdateChecker(QWidget):
     """支持 GitHub 和 Gitee 的独立更新检查类"""
 
-    def __init__(self, parent=None, repo="dingmama123141/JsonConfiguration", platform="gitee"):
+    def __init__(self, parent=None):
         """
         :param parent: 父级窗口
         :param repo: 仓库名（格式：owner/repo）
@@ -20,15 +20,12 @@ class UpdateChecker(QWidget):
         """
         super().__init__(parent)
         self.parent = parent
-        self.repo = repo
-        self.platform = platform.lower()
+        self.platform = self.parent.config.patch_info.get("版本管理方式")
+        self.repo = self.parent.config.patch_info.get(self.platform).get("项目名称")
+        self.token = self.parent.config.patch_info.get(self.platform).get("令牌", None)
         self.progress_dialog = None
         self.download_thread = None
         self.current_version = self._get_current_version()
-
-    def change_repo(self, platform: str, repo: str):
-        self.platform = platform
-        self.repo = repo
 
     def _get_current_version(self):
         """获取当前版本号"""
@@ -44,7 +41,7 @@ class UpdateChecker(QWidget):
 
     def check_update(self):
         """检查更新入口方法（支持 GitHub/Gitee）"""
-        self.async_checker = AsyncUpdateChecker(self.repo, self.platform)
+        self.async_checker = AsyncUpdateChecker(self)
         self.async_checker.finished.connect(self._on_check_finished)
         self.async_checker.error.connect(self._on_check_error)
         self.async_checker.start()
@@ -85,17 +82,17 @@ class UpdateChecker(QWidget):
             f"发现新版本 {latest_release['tag_name']}，当前版本 {self.current_version}，是否更新？\n\n更新内容：\n{update_notes}"
         )
 
-        yes_btn = msg_box.addButton("更新", QMessageBox.AcceptRole)
+        yes_btn = msg_box.addButton("更新", QMessageBox.YesRole)
         yes_btn.setIcon(get_icon("版本更新"))
         yes_btn.setStyleSheet(get_button_style_sheet(bg_color="#4db3ff"))
 
-        no_btn = msg_box.addButton("取消", QMessageBox.RejectRole)
+        no_btn = msg_box.addButton("取消", QMessageBox.NoRole)
         no_btn.setIcon(get_icon("叉号"))
         no_btn.setStyleSheet(get_button_style_sheet(bg_color="#f0f0f0"))
 
         msg_box.setDefaultButton(yes_btn)
-
-        if msg_box.exec_() == yes_btn:
+        msg_box.exec_()
+        if msg_box.clickedButton() == yes_btn:
             self._start_download(latest_release)
 
     def _start_download(self, latest_release):
@@ -112,7 +109,7 @@ class UpdateChecker(QWidget):
         self.progress_dialog.canceled.connect(self._cancel_download)
 
         # 启动下载线程
-        self.download_thread = DownloadThread(update_url, self.update_path)
+        self.download_thread = DownloadThread(update_url, self.update_path, self.token)
         self.download_thread.progress_signal.connect(self.progress_dialog.setValue)
         self.download_thread.finished_signal.connect(self._handle_download_finished)
         self.download_thread.error_signal.connect(self._handle_download_error)
