@@ -1,5 +1,17 @@
 [
   {
+    "version": "1.0.7",
+    "publishDate": "2025-06-23 10:57",
+    "forceUpdate": true,
+    "publishNotes": [
+      "feat(application): 添加 AI 智能划分功能",
+      "- 引入 Jenks 自然间断点算法，实现自动划分功能",
+      "- 添加 AI 划分按钮和相关逻辑",
+      "- 优化 draggable lines，支持鼠标悬浮变实线",
+      "- 调整直方图范围设置对话框布局",
+      "- 更新依赖库：scipy、kneed、jenkspy"
+    ]
+  },{
     "version": "1.0.6",
     "publishDate": "2025-06-22 11:51",
     "forceUpdate": true,

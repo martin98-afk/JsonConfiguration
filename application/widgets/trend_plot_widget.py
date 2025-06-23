@@ -259,7 +259,7 @@ class TrendPlotWidget(pg.PlotWidget):
         self.tooltip_widget.hide()
 
     def mousePressEvent(self, ev):
-        if ev.button() == Qt.RightButton:
+        if ev.button() == Qt.RightButton and self.kwargs.get("show_service", True):
             self._show_copy_dialog(ev.pos())
             return
 

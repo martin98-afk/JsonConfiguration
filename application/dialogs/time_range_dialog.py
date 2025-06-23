@@ -4,7 +4,7 @@ from collections import defaultdict
 
 import pyqtgraph as pg
 from datetime import datetime
-from PyQt5.QtCore import Qt, QDateTime, QThreadPool, QSize, QPropertyAnimation, QEvent
+from PyQt5.QtCore import Qt, QDateTime, QThreadPool, QSize, QPropertyAnimation, QEvent, QPoint
 from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtWidgets import (
     QApplication,
@@ -24,9 +24,11 @@ from PyQt5.QtWidgets import (
     QSpacerItem,
     QSizePolicy,
     QComboBox,
-    QMessageBox,
+    QMessageBox, QMenu,
 )
 from application.dialogs.time_selector_dialog import TimeSelectorDialog
+from application.tools.jenks_breakpoint import JenksBreakpoint
+from application.tools.train_data_select import TrainDataSelect
 from application.utils.threading_utils import Worker
 from application.utils.utils import styled_dt, get_icon, get_button_style_sheet
 from application.widgets.selectable_region import SelectableRegionItem
@@ -211,6 +213,13 @@ class TimeRangeDialog(QDialog):
         )
 
         # 添加、删除、确认按钮
+        self.btn_suggest = QPushButton("推荐")
+        self.btn_suggest.setIcon(get_icon("AI"))
+        self.btn_suggest.setToolTip("根据稳定性自动推荐训练窗口")
+        self.btn_suggest.setStyleSheet(get_button_style_sheet())
+        self.btn_suggest.clicked.connect(self._suggest_windows_async)
+        ctrl.addWidget(self.btn_suggest)
+
         manual = QPushButton("输入")
         manual.setIcon(get_icon("手动设置"))
         manual.setToolTip("手动选择时间范围")
@@ -244,13 +253,63 @@ class TimeRangeDialog(QDialog):
         ctrl.addWidget(btn_confirm)
 
         rv.addLayout(ctrl)
-        self.plot = TrendPlotWidget(parent=self.parent)
+        self.plot = TrendPlotWidget(parent=self.parent, show_service=False)
         rv.addWidget(self.plot)
         splitter.addWidget(left)
         splitter.addWidget(right)
         splitter.setSizes([350, 1100])
         self.setLayout(QVBoxLayout())
         self.layout().addWidget(splitter)
+
+    def _suggest_windows_async(self):
+        if self.current_data is None:
+            QMessageBox.information(self, "提示", "请先点“更新图表”载入数据")
+            return
+        self.btn_suggest.setEnabled(False)
+        train_dataset_suggest_tool = TrainDataSelect()
+        worker = Worker(
+            train_dataset_suggest_tool.call,
+            self.current_data,  # 在 _on_data_fetched_segment 里把 data 暂存到 self.current_data
+        )
+        worker.signals.finished.connect(self._on_suggest_ready)
+        worker.signals.error.connect(lambda *_: self._reset_suggest_btn())
+        self.thread_pool.start(worker)
+
+    def _on_suggest_ready(self, win_list):
+        self._reset_suggest_btn()
+        if not win_list:
+            QMessageBox.information(self, "提示", "未找到合适的稳定区段")
+            return
+
+        # 清掉旧推荐高亮
+        if hasattr(self, "_suggest_regions"):
+            for reg in self._suggest_regions:
+                self.plot.removeItem(reg)
+        self._suggest_regions = []
+
+        for i, (t0, t1) in enumerate(win_list, 1):
+            # 绿色半透明高亮
+            item = SelectableRegionItem(
+                index=i,
+                callback=self._update_range,
+                values=[t0, t1],
+                brush=(255, 0, 0, 80),
+                pen=pg.mkPen((200, 0, 0), width=2),
+            )
+            self.plot.addItem(item)
+            self.region_items.append(item)
+            self._suggest_regions.append(item)
+            self.selected_ranges.append((datetime.fromtimestamp(t0), datetime.fromtimestamp(t1)))
+
+    def _apply_suggestion(self, win):
+        t0, t1 = map(datetime.fromtimestamp, win)
+        self.start_time.setDateTime(t0)
+        self.end_time.setDateTime(t1)
+        # 自动更新 plot 方便预览
+        self.update_plot_async()
+
+    def _reset_suggest_btn(self):
+        self.btn_suggest.setEnabled(True)
 
     def _init_signals(self):
         """初始化信号连接"""
@@ -517,6 +576,7 @@ class TimeRangeDialog(QDialog):
         self.plot.setXRange(r0, r1, padding=0)
         self.btn_apply.setEnabled(True)
         self.btn_apply.setIcon(get_icon("change"))
+        self.current_data = data  # <—— 加这一行
 
     def _clear_region(self):
         self.plot.disable_selection()

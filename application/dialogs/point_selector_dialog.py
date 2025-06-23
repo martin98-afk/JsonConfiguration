@@ -209,7 +209,7 @@ class PointSelectorDialog(QDialog):
 
         trend_body_layout.addWidget(self.statistics_panel, stretch=1)
 
-        self.trend_plot = TrendPlotWidget(legend=False, parent=self.parent)
+        self.trend_plot = TrendPlotWidget(legend=False, parent=self.parent, show_service=False)
         trend_body_layout.addWidget(self.trend_plot, stretch=9)
         self.trend_panel.hide()
 
