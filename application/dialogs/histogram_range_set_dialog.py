@@ -1,8 +1,10 @@
 import re
-from typing import List
-
+import numpy as np
 import numpy as np
 import pyqtgraph as pg
+
+from typing import List
+from sklearn.mixture import GaussianMixture
 from PyQt5.QtCore import Qt, QDateTime, QThreadPool, QTimer, QPoint
 from PyQt5.QtWidgets import (
     QDialog, QApplication, QVBoxLayout, QHBoxLayout,
@@ -37,7 +39,7 @@ class IntervalPartitionDialog(QDialog):
         self.thread_pool = QThreadPool.globalInstance()
 
         self.setWindowTitle("划分区间")
-        self.resize(1000, 650)
+        self.resize(1200, 650)
 
         self._build_ui()
         self._init_time_range()
@@ -105,7 +107,7 @@ class IntervalPartitionDialog(QDialog):
         ctrl.addStretch()
 
         # 添加ai按钮，引入机器学习算法自动划分断点
-        self.ai_partition = QPushButton("划分")
+        self.ai_partition = QPushButton("推荐")
         self.ai_partition.setIcon(get_icon("AI"))
         self.ai_partition.setStyleSheet(get_button_style_sheet())
         self.ai_partition.setToolTip('AI智能划分')
@@ -194,14 +196,33 @@ class IntervalPartitionDialog(QDialog):
             # 忽略首尾
             return jenks_tool.call(data)
         else:
-            # ───── 剔除离群值后取 min/max ─────
-            q1, q3 = np.percentile(data, [25, 75])
-            iqr = q3 - q1
-            lower, upper = q1 - 1.5 * iqr, q3 + 1.5 * iqr
-            trimmed = data[(data >= lower) & (data <= upper)]
-            if trimmed.size == 0:  # 极端情况全部被过滤
-                trimmed = data
-            return [float(trimmed.min()), float(trimmed.max())]
+            def robust_range(data, n_components=3, std_scale=3):
+                data = np.asarray(data).reshape(-1, 1)
+
+                # 判断是否为离散变量（唯一值较少）
+                unique_values = np.unique(data)
+                if len(unique_values) <= 10:
+                    return [float(data.min()), float(data.max())]
+
+                # 拟合 GMM 模型
+                gmm = GaussianMixture(n_components=n_components, random_state=0)
+                gmm.fit(data)
+
+                # 获取每个分布的均值和标准差
+                means = gmm.means_.flatten()
+                stds = np.sqrt(gmm.covariances_).flatten()
+
+                # 找到最左和最右峰的均值及其 std
+                lower = min(means[id] - std_scale * stds[id] for id in range(len(means)))
+                upper = max(means[id] + std_scale * stds[id] for id in range(len(means)))
+
+                trimmed = data[(data >= lower) & (data <= upper)]
+                if trimmed.size == 0:
+                    trimmed = data
+
+                return [float(trimmed.min()), float(trimmed.max())]
+
+            return robust_range(data)
 
     def _on_ai_finished(self, breaks):
         self._reset_ai_btn()
