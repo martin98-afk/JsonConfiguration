@@ -19,8 +19,7 @@ class ServiceLogger(BaseTool):
     用于查询服务日志的类，依赖服务搜索器的配置。
     """
 
-    def __init__(self, base_url: str, api_key: dict, service_state_path: str, service_log_path: str,
-                 timeout: float = 3.0, **kwargs):
+    def __init__(self, base_url: str, api_key: dict, service_state_path: str, service_log_path: str, **kwargs):
         """
         初始化日志查询器。
 
@@ -33,7 +32,6 @@ class ServiceLogger(BaseTool):
         self.headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         self.service_state_path = service_state_path
         self.service_log_path = service_log_path
-        self.timeout = timeout
 
     @retry(
         stop=stop_after_attempt(3),

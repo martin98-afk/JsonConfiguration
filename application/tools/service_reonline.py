@@ -17,8 +17,7 @@ class ServiceReonline(BaseTool):
     用于将异常下线、服务日志卡死服务重新下线再上线
     """
 
-    def __init__(self, base_url: str, api_key: dict, service_online_path: str, service_outline_path: str,
-                 timeout: float = 3.0, **kwargs):
+    def __init__(self, base_url: str, api_key: dict, service_online_path: str, service_outline_path: str, **kwargs):
         """
         初始化日志查询器。
 
@@ -31,7 +30,6 @@ class ServiceReonline(BaseTool):
         self.headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         self.service_online_path = service_online_path
         self.service_outline_path = service_outline_path
-        self.timeout = timeout
 
     def call(self, service_version_id: str) -> str:
         """

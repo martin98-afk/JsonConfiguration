@@ -29,6 +29,7 @@ from PyQt5.QtWidgets import (
 from application.dialogs.time_selector_dialog import TimeSelectorDialog
 from application.tools.jenks_breakpoint import JenksBreakpoint
 from application.tools.train_data_select import TrainDataSelect
+from application.utils.data_format_transform import list2str
 from application.utils.threading_utils import Worker
 from application.utils.utils import styled_dt, get_icon, get_button_style_sheet
 from application.widgets.selectable_region import SelectableRegionItem
@@ -630,7 +631,7 @@ class TimeRangeDialog(QDialog):
             for t0, t1 in self.merged_selected_ranges
         ]
         return (
-            "\n".join(["~".join(range) for range in time_ranges])
+            list2str(time_ranges)
             if len(time_ranges) > 0
             else ""
         )

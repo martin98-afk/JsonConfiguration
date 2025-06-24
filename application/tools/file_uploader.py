@@ -24,13 +24,12 @@ class DatasetUploader(BaseTool):
     """
 
     def __init__(self, base_url: str, api_key: str = "", upload_path: str = "/rest/di/dataset/upload",
-                 add_path: str = "/rest/di/dataset/add", timeout: float = 5.0, **kwargs):
+                 add_path: str = "/rest/di/dataset/add", **kwargs):
         super().__init__()
         self.base_url = base_url.rstrip("/")
         self.upload_path = upload_path
         self.add_path = add_path
         self.headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
-        self.timeout = timeout
 
     def _ensure_zip(self, input_path: str) -> (str, bool):
         """

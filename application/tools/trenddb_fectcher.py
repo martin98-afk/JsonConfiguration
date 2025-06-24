@@ -8,6 +8,7 @@ from application.base import BaseTool
 
 
 class TrenddbFetcher(BaseTool):
+    timeout = 20
 
     def __init__(
             self, base_url: str, api_key: str, path: str, max_workers=10, **kwargs
@@ -36,7 +37,7 @@ class TrenddbFetcher(BaseTool):
 
         try:
             with httpx.Client(base_url=self.base_url) as client:
-                response = client.get(url=self.path, params=params, timeout=10)
+                response = client.get(url=self.path, params=params, timeout=self.timeout)
             if response.status_code == 200:
                 data = response.json()
                 if data["success"]:
@@ -89,7 +90,7 @@ class TrenddbFetcher(BaseTool):
                 response = client.get(
                     url=self.path,
                     params=params,
-                    timeout=10,
+                    timeout=self.timeout,
                     headers={"Authorization": f"Bearer {self.api_key}"},
                 )
             response.raise_for_status()

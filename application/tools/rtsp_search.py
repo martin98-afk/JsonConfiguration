@@ -6,28 +6,22 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_type
 
+from application.base import BaseTool
 
-class RTSPSearcher():
+
+class RTSPSearcher(BaseTool):
     """
     支持单个或多个 point_path，并行 fetch 测点，增加设备名称获取的容错重试。
     """
 
-    def __init__(
-            self,
-            prefix: str,
-            api_key: str,
-            dev_name_path: str,
-            point_path: Dict[str, str],
-            timeout: float = 3.0,
-            max_workers: int = 10,
-            **kwargs
-    ):
+    def __init__(self, prefix: str, api_key: str, dev_name_path: str, point_path: Dict[str, str], max_workers: int = 10,
+                 **kwargs):
+        super().__init__()
         self.base_url = prefix
         self.headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         self.dev_name_path = dev_name_path
         # 支持传入字符串或列表
         self.point_paths = point_path
-        self.timeout = timeout
         self.max_workers = max_workers
         # 获取设备映射，自动重试
         try:

@@ -14,7 +14,6 @@ class ServiceParamsFetcher(BaseTool):
         prefix: str,
         api_key: str,
         service_params_path: str,
-        timeout: float = 3.0,
         max_workers: int = 10,
         **kwargs,
     ):
@@ -22,7 +21,6 @@ class ServiceParamsFetcher(BaseTool):
         self.base_url = prefix
         self.headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         self.service_params_path = service_params_path
-        self.timeout = timeout
         self.max_workers = max_workers
 
     def call(self, service_id: str) -> list[str]:

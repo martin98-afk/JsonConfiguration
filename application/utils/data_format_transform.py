@@ -1,10 +1,11 @@
 import re
+from typing import Tuple
 
 
 def list2str(value: list) -> str:
     """将配置中的list形式用清晰的形式展现在配置工具中"""
-    if len(value) > 0 and isinstance(value[0], list):
-        value = "\n".join([" ~ ".join([str(v) for v in item]) for item in value])
+    if len(value) > 0 and (isinstance(value[0], list) or isinstance(value[0], Tuple)):
+        value = "\n".join([" ~ ".join([v if isinstance(v, str) else str(round(v, 2)) for v in item]) for item in value])
     elif len(value) > 0:
         value = " ~ ".join([str(v) for v in value])
     elif len(value) == 0:

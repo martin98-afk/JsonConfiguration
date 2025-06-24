@@ -22,7 +22,6 @@ class PointSearcher(BaseTool):
             api_key: str,
             dev_name_path: str,
             point_path: Dict[str, str],
-            timeout: float = 3.0,
             max_workers: int = 10,
             **kwargs
     ):
@@ -32,7 +31,6 @@ class PointSearcher(BaseTool):
         self.dev_name_path = dev_name_path
         # 支持传入字符串或列表
         self.point_paths = point_path
-        self.timeout = timeout
         self.max_workers = max_workers
         # 获取设备映射，自动重试
         try:

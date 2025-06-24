@@ -14,7 +14,6 @@ class SeviceListSearcher(BaseTool):
         prefix: str,
         api_key: str,
         service_list_path: str,
-        timeout: float = 3.0,
         max_workers: int = 10,
         **kwargs,
     ):
@@ -22,7 +21,6 @@ class SeviceListSearcher(BaseTool):
         self.base_url = prefix
         self.headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         self.service_list_path = service_list_path
-        self.timeout = timeout
         self.max_workers = max_workers
 
     def call(self) -> list[list[str]]:

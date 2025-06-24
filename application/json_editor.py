@@ -906,7 +906,7 @@ class JSONEditor(QWidget):
                 if dlg.exec_() == QDialog.Accepted:
                     intervals = dlg.get_intervals()
                     # 格式化区间字符串，增加易读性
-                    text = "\n".join([f"{a:.2f} ~ {b:.2f}" for a, b in intervals])
+                    text = list2str(intervals)
                     item.setText(1, text)
                     # 高亮显示变化
                     if text != current_value:
@@ -957,7 +957,7 @@ class JSONEditor(QWidget):
                     intervals = dlg.get_intervals()
                     if intervals:
                         # 格式化区间字符串为整体范围
-                        text = f"{intervals[0][0]:.2f} ~ {intervals[-1][-1]:.2f}"
+                        text = list2str(intervals)
                         if text != current_value:
                             item.setText(1, text)
                             # 高亮新值
