@@ -153,13 +153,16 @@ class IntervalPartitionDialog(QDialog):
     def _restore_breakpoints(self, text: str):
         """根据保存的文本恢复断点"""
         for line in text.splitlines():
-            parts = [p.strip() for p in line.split(' ~ ')]
-            if len(parts) == 2 and all(re.match(r'^[+-]?(?:\d+\.\d*|\.\d+|\d+)$', p) for p in parts):
+            parts = [item.strip() for item in line.split(' ~ ')]
+            if len(parts) == 2:
                 try:
-                    self._add_cut_line(float(parts[0]), initial=True)
-                    self._add_cut_line(float(parts[1]), initial=True)
+                    if re.match(r'^[+-]?(?:\d+\.\d*|\.\d+|\d+)$', parts[0]):
+                        start = float(parts[0])
+                        self._add_cut_line(start, initial=True)
                 except ValueError:
                     continue
+        if re.match(r'^[+-]?(?:\d+\.\d*|\.\d+|\d+)$', parts[1]):
+            self._add_cut_line(float(parts[1]), initial=True)
 
     def _on_partition_toggled(self, checked: bool):
         # 划分模式切换样式
