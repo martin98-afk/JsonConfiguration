@@ -91,6 +91,7 @@ class ConfigSettingDialog(QDialog):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(16, 16, 16, 16)
         main_layout.setSpacing(12)
+
         # Add layout for top buttons
         self.button_layout = QHBoxLayout()
         self.button_layout.setSpacing(8)

@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.0.8",
+    "publishDate": "2025-06-25 10:45",
+    "forceUpdate": true,
+    "publishNotes": [
+      "refactor(service_test_dialog): 优化日志显示和搜索功能",
+      "- 添加滚动条样式，提升界面美观度",
+      "- 实现日志内容的 HTML 转换，支持格式化显示",
+      "- 优化日志搜索功能，支持多关键词高亮",
+      "- 修复了一些与 JSON 解析和 UI 渲染相关的小问题"
+    ]
+  },{
     "version": "1.0.7",
     "publishDate": "2025-06-24 9:53",
     "forceUpdate": true,

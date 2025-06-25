@@ -1,10 +1,11 @@
+import html
 import json
 import re
 import sys
 from collections import deque
 
 from PyQt5.QtCore import Qt, QTimer, QThreadPool
-from PyQt5.QtGui import QFont, QTextCursor, QColor, QTextCharFormat, QKeySequence
+from PyQt5.QtGui import QFont, QTextCursor, QColor, QTextCharFormat, QKeySequence, QTextDocument
 from PyQt5.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -29,6 +30,19 @@ from application.utils.utils import get_icon, get_button_style_sheet
 
 
 class JSONServiceTester(QMainWindow):
+    LOG_PATTERN = re.compile(
+        r"(?P<datetime>\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\.\d+\s*\|\s*(?P<level>[A-Z]+)\s*\|\s*[^:]+:(?P<func>\w+):\d+\s*-\s*(?P<msg>.*)"
+    )
+
+    LEVEL_COLORS = {
+        'DEBUG': '#808080',
+        'INFO': '#9cdcfe',
+        'WARNING': '#ffcb6b',
+        'WARN': '#ffcb6b',
+        'ERROR': '#f44747',
+        'Error': '#f44747',
+        'CRITICAL': '#f44747',
+    }
 
     def __init__(self, current_text: str, parent=None):
         super().__init__()
@@ -68,6 +82,7 @@ class JSONServiceTester(QMainWindow):
             )
             # 初始化界面
             self.init_ui()
+            self.format_json()
 
         except Exception as e:
             logger.error(f"初始化服务组件失败: {e}")
@@ -159,7 +174,22 @@ class JSONServiceTester(QMainWindow):
         input_header = QHBoxLayout()
         input_header.addWidget(QLabel("📝 请求数据"))
         input_header.addStretch()
+
+        self.format_btn = QPushButton("")
+        self.format_btn.setIcon(get_icon("美化代码"))
+        self.format_btn.setMaximumHeight(25)
+        self.format_btn.setStyleSheet(get_button_style_sheet())
+        self.format_btn.setToolTip("格式化当前JSON")
+        copy_btn = QPushButton("")
+        copy_btn.setIcon(get_icon("复制"))
+        copy_btn.setMaximumHeight(25)
+        copy_btn.setStyleSheet(get_button_style_sheet())
+        copy_btn.setToolTip("复制当前JSON")
+        copy_btn.clicked.connect(self.copy_json)
+        input_header.addWidget(self.format_btn)
+        input_header.addWidget(copy_btn)
         input_inner.addLayout(input_header)
+
         self.json_input = QPlainTextEdit()
         self.json_input.setPlaceholderText("在此输入JSON请求数据...")
         self.json_input.setPlainText(self.current_text)
@@ -174,17 +204,6 @@ class JSONServiceTester(QMainWindow):
         input_example_btn.clicked.connect(self.insert_example_json)
         input_btn.addWidget(input_example_btn)
 
-        self.format_btn = QPushButton("美化")
-        self.format_btn.setIcon(get_icon("美化代码"))
-        self.format_btn.setStyleSheet(get_button_style_sheet())
-        self.format_btn.setToolTip("格式化当前JSON")
-        copy_btn = QPushButton("复制")
-        copy_btn.setIcon(get_icon("复制"))
-        copy_btn.setStyleSheet(get_button_style_sheet())
-        copy_btn.setToolTip("复制当前JSON")
-        copy_btn.clicked.connect(self.copy_json)
-        input_btn.addWidget(self.format_btn)
-        input_btn.addWidget(copy_btn)
         input_inner.addLayout(input_btn)
 
         # 响应结果区域
@@ -285,6 +304,64 @@ class JSONServiceTester(QMainWindow):
         self.log_display.setReadOnly(True)
         self.log_display.setFont(QFont("Consolas", 11))
         self.log_display.setPlaceholderText("日志内容将显示在这里...")
+        self.log_display.setStyleSheet(
+            """
+            QTextEdit {
+                background-color: #1e1e1e;
+                color: #d4d4d4;
+                font-family: Consolas, Courier, monospace;
+                font-size: 12pt;
+                border: none;
+            }
+            /* 纵向滚动条 */
+            QTextEdit QScrollBar:vertical {
+                background: transparent;
+                width: 8px;
+                margin: 0px;
+            }
+            QTextEdit QScrollBar::handle:vertical {
+                background: #555555;
+                border-radius: 4px;
+                min-height: 20px;
+            }
+            QTextEdit QScrollBar::handle:vertical:hover {
+                background: #888888;
+            }
+            QTextEdit QScrollBar::add-line:vertical,
+            QTextEdit QScrollBar::sub-line:vertical {
+                height: 0px;
+                background: none;
+                border: none;
+            }
+            QTextEdit QScrollBar::add-page:vertical, QTextEdit QScrollBar::sub-page:vertical {
+                background: none;
+            }
+
+            /* 横向滚动条 */
+            QTextEdit QScrollBar:horizontal {
+                background: transparent;
+                height: 8px;
+                margin: 0px;
+            }
+            QTextEdit QScrollBar::handle:horizontal {
+                background: #555555;
+                border-radius: 4px;
+                min-width: 20px;
+            }
+            QTextEdit QScrollBar::handle:horizontal:hover {
+                background: #888888;
+            }
+            QTextEdit QScrollBar::add-line:horizontal,
+            QTextEdit QScrollBar::sub-line:horizontal {
+                width: 0px;
+                background: none;
+                border: none;
+            }
+            QTextEdit QScrollBar::add-page:horizontal, QTextEdit QScrollBar::sub-page:horizontal {
+                background: none;
+            }
+            """
+        )
         log_layout.addWidget(self.log_display)
 
         splitter = QSplitter(Qt.Vertical)
@@ -341,7 +418,7 @@ class JSONServiceTester(QMainWindow):
         worker.signals.finished.connect(self.on_services_load)
         self.thread_pool.start(worker)
 
-    def  on_services_load(self, services):
+    def on_services_load(self, services):
         try:
             self.service_combo.clear()
             for name, path, sid in services:
@@ -496,141 +573,146 @@ class JSONServiceTester(QMainWindow):
         finally:
             self.is_processing_queue = False
 
+    def traditional_log_line(self, line: str) -> str:
+        safe_line = line.replace(" ", "&nbsp;")  # 替换空格
+        for key, value in self.LEVEL_COLORS.items():
+            if key in line:
+                return f'<span style="color:{value};">{safe_line}</span>'
+
+        return safe_line
+
+    def transform_log_to_html(self, log: str) -> str:
+        html_lines = log.splitlines()
+        processed_lines = []
+        for line in html_lines:
+            match = self.LOG_PATTERN.match(line)
+            if not match:
+                # 这里去掉对空格替换，直接html转义，防止标签被破坏
+                safe_line = html.escape(line)
+                processed_lines.append(f"<div>{self.traditional_log_line(safe_line)}</div>")
+            else:
+                parts = match.groupdict()
+                time = parts['datetime'][5:]  # MM-DD...
+                level = parts['level']
+                msg = html.escape(parts['msg'])  # 转义避免标签干扰
+                color = self.LEVEL_COLORS.get(level, '#cccccc')
+                processed_lines.append(f"<div><span style='color:{color};'>[{time}] | {level} | {msg}</span></div>")
+
+        return f"""
+                <div style="white-space: pre-wrap; font-family: Consolas, monospace; font-size: 12pt; margin:0; padding:0;">
+                    {''.join(processed_lines)}
+                </div>
+                """
+
     def _update_log_display(self, new_log_content):
+        if hasattr(self, "_raw_log_content") and new_log_content == self._raw_log_content:
+            return
         # 原始增量更新逻辑
         if not hasattr(self, "_raw_log_content"):
             self._raw_log_content = new_log_content
-            self.log_display.setPlainText(self._raw_log_content)
+            self.log_display.setHtml(self.transform_log_to_html(new_log_content))
             # 仅在初始化时触发一次滚动
             QTimer.singleShot(0, self.scroll_to_bottom)
             return
 
         if new_log_content.startswith(self._raw_log_content):
             added_text = new_log_content[len(self._raw_log_content):]
-            self._raw_log_content = new_log_content
-            cursor = self.log_display.textCursor()
-            cursor.movePosition(QTextCursor.End)
-            cursor.insertText(added_text)
-            # 仅在添加新内容时触发一次滚动
-            QTimer.singleShot(0, self.scroll_to_bottom)
+            if added_text.strip():  # 确认有新增内容才插入
+                self._raw_log_content = new_log_content
+                added_html = self.transform_log_to_html(added_text)
+                cursor = self.log_display.textCursor()
+                cursor.movePosition(QTextCursor.End)
+                cursor.insertHtml(added_html)
+                self.log_display.setTextCursor(cursor)
+                QTimer.singleShot(0, self.scroll_to_bottom)
+            else:
+                # 没有新增内容，啥都不做，避免闪烁
+                pass
         else:
             # 全量更新时保留滚动位置
-            prev_pos = self.log_display.verticalScrollBar().value()
             self._raw_log_content = new_log_content
-            self.log_display.setPlainText(self._raw_log_content)
-            self.log_display.verticalScrollBar().setValue(prev_pos)
+            self.log_display.setHtml(self.transform_log_to_html(new_log_content))
+            QTimer.singleShot(0, self.scroll_to_bottom)
 
     def apply_filter(self, keyword):
-        """增强的搜索和高亮功能，支持多关键词"""
-        # 清除现有搜索结果
         self._all_match_selections.clear()
         self.search_results.clear()
         self.current_result_index = -1
 
-        # 没有关键词时恢复原始内容
         if not keyword.strip():
             if hasattr(self, "_raw_log_content"):
-                self.log_display.setPlainText(self._raw_log_content)
+                self.log_display.setHtml(self._raw_log_content)
             self.update_search_status()
             return
 
         try:
-            # 支持多关键词搜索 (空格分隔)
             keywords = [k.strip() for k in keyword.split() if k.strip()]
             if not keywords:
                 return
 
-            # 准备正则表达式
-            patterns = [re.compile(re.escape(kw), re.IGNORECASE) for kw in keywords]
-            lines = self._raw_log_content.split("\n")
             highlight_colors = [
-                QColor("#ffff00"),  # 黄色
-                QColor("#90EE90"),  # 浅绿色
-                QColor("#ADD8E6"),  # 浅蓝色
-                QColor("#FFB6C1"),  # 浅粉色
-                QColor("#E6E6FA"),  # 薰衣草色
+                QColor("#ffff00"),
+                QColor("#90EE90"),
+                QColor("#ADD8E6"),
+                QColor("#FFB6C1"),
+                QColor("#E6E6FA"),
             ]
 
-            # 逐行搜索每个关键词
-            for line_no, line in enumerate(lines):
-                for pattern_idx, pattern in enumerate(patterns):
-                    for match in pattern.finditer(line):
-                        start, end = match.span()
-                        self.search_results.append((line_no, start, end))
+            doc = self.log_display.document()
 
-                        # 创建高亮选择
-                        block = self.log_display.document().findBlockByNumber(line_no)
-                        if block.isValid():
-                            cursor = QTextCursor(block)
-                            cursor.setPosition(block.position() + start)
-                            cursor.movePosition(
-                                QTextCursor.NextCharacter,
-                                QTextCursor.KeepAnchor,
-                                end - start,
-                            )
+            for idx, kw in enumerate(keywords):
+                color = highlight_colors[idx % len(highlight_colors)]
+                pos = 0
+                while True:
+                    cursor = doc.find(kw, pos, QTextDocument.FindCaseSensitively)
+                    if cursor.isNull():
+                        break
+                    sel = QTextEdit.ExtraSelection()
+                    sel.cursor = cursor
+                    fmt = QTextCharFormat()
+                    fmt.setBackground(color)
+                    sel.format = fmt
+                    self._all_match_selections.append(sel)
 
-                            sel = QTextEdit.ExtraSelection()
-                            sel.cursor = cursor
-                            fmt = QTextCharFormat()
+                    # 存储基于文档的字符位置
+                    self.search_results.append((cursor.selectionStart(), cursor.selectionEnd()))
 
-                            # 根据关键词索引使用不同颜色
-                            color_idx = pattern_idx % len(highlight_colors)
-                            fmt.setBackground(highlight_colors[color_idx])
+                    pos = cursor.selectionEnd()
 
-                            sel.format = fmt
-                            self._all_match_selections.append(sel)
-
-            # 应用所有高亮
             self.log_display.setExtraSelections(self._all_match_selections)
-
-            # 排序搜索结果按行号和位置
-            self.search_results.sort(key=lambda x: (x[0], x[1]))
-
-            # 更新搜索状态
+            self.search_results.sort(key=lambda x: x[0])
             self.update_search_status()
 
-            # 自动选择第一个结果
             if self.search_results:
                 self.navigate_search(1)
 
-        except re.error as e:
-            logger.warning(f"正则表达式错误：{e}")
-            self.statusBar().showMessage(f"搜索表达式错误: {str(e)}", 3000)
+        except Exception as e:
+            logger.warning(f"搜索错误：{e}")
+            self.statusBar().showMessage(f"搜索错误: {str(e)}", 3000)
 
     def navigate_search(self, direction):
-        """优化当前位置高亮逻辑"""
         if not self.search_results:
             return
 
-        self.current_result_index = (self.current_result_index + direction) % len(
-            self.search_results
-        )
-        line_no, start_pos, end_pos = self.search_results[self.current_result_index]
+        self.current_result_index = (self.current_result_index + direction) % len(self.search_results)
+        start, end = self.search_results[self.current_result_index]
 
-        block = self.log_display.document().findBlockByNumber(line_no)
-        if block.isValid():
-            cursor = QTextCursor(block)
-            cursor.setPosition(block.position() + start_pos)
-            cursor.movePosition(
-                QTextCursor.NextCharacter, QTextCursor.KeepAnchor, end_pos - start_pos
-            )
+        cursor = self.log_display.textCursor()
+        cursor.setPosition(start)
+        cursor.setPosition(end, QTextCursor.KeepAnchor)
 
-            # 创建显眼的红色高亮
-            self._current_selection = QTextEdit.ExtraSelection()
-            self._current_selection.cursor = cursor
-            fmt = QTextCharFormat()
-            fmt.setBackground(QColor("#ff4444"))  # 鲜红色
-            fmt.setForeground(QColor("#ffffff"))  # 白色文字
-            self._current_selection.format = fmt
+        self._current_selection = QTextEdit.ExtraSelection()
+        self._current_selection.cursor = cursor
+        fmt = QTextCharFormat()
+        fmt.setBackground(QColor("#ff4444"))
+        fmt.setForeground(QColor("#ffffff"))
+        self._current_selection.format = fmt
 
-            # 合并所有高亮
-            extras = [self._current_selection] + self._all_match_selections
-            self.log_display.setExtraSelections(extras)
+        extras = [self._current_selection] + self._all_match_selections
+        self.log_display.setExtraSelections(extras)
 
-            # 精准滚动到匹配位置
-            self.log_display.setTextCursor(cursor)
-            self.log_display.ensureCursorVisible()
-
+        self.log_display.setTextCursor(cursor)
+        self.log_display.ensureCursorVisible()
         self.update_search_status()
 
     def scroll_to_bottom(self):

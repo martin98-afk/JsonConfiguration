@@ -323,8 +323,12 @@ class IntervalPartitionDialog(QDialog):
         super().keyPressEvent(ev)
 
     def get_intervals(self):
-        xs = sorted(ln.value() for ln in self.cut_lines)
-        return [(xs[i], xs[i + 1]) for i in range(len(xs) - 1)]
+        if self.type == "partition":
+            xs = sorted(ln.value() for ln in self.cut_lines)
+            return [(xs[i], xs[i + 1]) for i in range(len(xs) - 1)]
+        else:
+            xs = sorted(ln.value() for ln in self.cut_lines)
+            return [xs[0], xs[-1]]
 
     def accept(self):
         # 离开划分模式

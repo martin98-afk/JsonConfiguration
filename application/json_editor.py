@@ -1784,6 +1784,53 @@ class JSONEditor(QWidget):
                     font-size: {2 * self.font_size}px;
                     padding: 10px;
                 }}
+                /* 纵向滚动条 */
+                QTextEdit QScrollBar:vertical {{
+                    background: transparent;
+                    width: 8px;
+                    margin: 0px;
+                }}
+                QTextEdit QScrollBar::handle:vertical {{
+                    background: #555555;
+                    border-radius: 4px;
+                    min-height: 20px;
+                }}
+                QTextEdit QScrollBar::handle:vertical:hover {{
+                    background: #888888;
+                }}
+                QTextEdit QScrollBar::add-line:vertical,
+                QTextEdit QScrollBar::sub-line:vertical {{
+                    height: 0px;
+                    background: none;
+                    border: none;
+                }}
+                QTextEdit QScrollBar::add-page:vertical, QTextEdit QScrollBar::sub-page:vertical {{
+                    background: none;
+                }}
+    
+                /* 横向滚动条 */
+                QTextEdit QScrollBar:horizontal {{
+                    background: transparent;
+                    height: 8px;
+                    margin: 0px;
+                }}
+                QTextEdit QScrollBar::handle:horizontal {{
+                    background: #555555;
+                    border-radius: 4px;
+                    min-width: 20px;
+                }}
+                QTextEdit QScrollBar::handle:horizontal:hover {{
+                    background: #888888;
+                }}
+                QTextEdit QScrollBar::add-line:horizontal,
+                QTextEdit QScrollBar::sub-line:horizontal {{
+                    width: 0px;
+                    background: none;
+                    border: none;
+                }}
+                QTextEdit QScrollBar::add-page:horizontal, QTextEdit QScrollBar::sub-page:horizontal {{
+                    background: none;
+                }}
             """)
             self.log_viewer.setWindowTitle("日志输出")
             self.log_viewer.resize(900, 500)
