@@ -46,7 +46,6 @@ class PointSelectorDialog(QDialog):
         self.current_value = current_value.split("\n")[0]
         self.thread_pool = QThreadPool.globalInstance()
         self.selected_point = None
-
         # 窗口设置
         self.setWindowTitle("选择测点")
         self.resize(1000, 600)
@@ -235,28 +234,25 @@ class PointSelectorDialog(QDialog):
         body.addLayout(right)
         main.addLayout(body)
 
-        # 加载 & 异步拉取
-        self.all_points = load_point_cache()
-        if self.all_points:
-            self.populate_ui(self.all_points)
         self.start_fetching()
 
     def set_curve_name(self, name: str):
         self.curve_name_label.setText(f"当前曲线: {name}")
 
     def start_fetching(self):
+        self.type_list.clear()
+        self.all_points = {}
         w = Worker(self.fetchers)
-        w.signals.finished.connect(self._on_fetch_complete)
+        w.signals.progress.connect(self._on_fetch_complete)
+        w.signals.finished.connect(self.highlight_current_point)
         self.thread_pool.start(w)
 
     def _on_fetch_complete(self, results):
-        self.all_points = results
+        self.all_points.update(results)
         save_point_cache(results)
         self.populate_ui(results)
-        self.highlight_current_point(results)
 
     def populate_ui(self, results):
-        self.type_list.clear()
         for t in results:
             self.type_list.addItem(t)
         if self.type_list.count():

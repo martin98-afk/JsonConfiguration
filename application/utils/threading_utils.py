@@ -11,6 +11,7 @@ from PyQt5.QtCore import QObject, QRunnable, pyqtSignal, pyqtSlot, QThread
 class WorkerSignals(QObject):
     finished = pyqtSignal(object)
     error = pyqtSignal(str)
+    progress = pyqtSignal(object)  # 新增：用于发送每次获取到的部分结果
 
 
 class Worker(QRunnable):
@@ -37,6 +38,7 @@ class Worker(QRunnable):
                     elif r and policy == "update":
                         for t, pts in r.items():
                             result[t] = pts
+                    self.signals.progress.emit(r)
             else:
                 result = self.fn(*self.args, **self.kwargs)
             self.signals.finished.emit(result)
@@ -47,18 +49,18 @@ class Worker(QRunnable):
 
 
 class DownloadThread(QThread):
-    progress_signal = pyqtSignal(int)     # 进度信号
-    finished_signal = pyqtSignal(str)     # 完成信号（返回文件路径）
-    error_signal = pyqtSignal(str)        # 错误信号
-    canceled_signal = pyqtSignal()        # 取消信号（新增）
+    progress_signal = pyqtSignal(int)  # 进度信号
+    finished_signal = pyqtSignal(str)  # 完成信号（返回文件路径）
+    error_signal = pyqtSignal(str)  # 错误信号
+    canceled_signal = pyqtSignal()  # 取消信号（新增）
 
     def __init__(self, url, file_path, token):
         super().__init__()
         self.url = url
         self.file_path = file_path
         self.headers = {"Authorization": f"token {token}"} if token else {}
-        self.is_canceled = False          # 取消标志位
-        self.session = requests.Session() # 使用 Session 以便关闭连接
+        self.is_canceled = False  # 取消标志位
+        self.session = requests.Session()  # 使用 Session 以便关闭连接
 
     def run(self):
         try:
@@ -81,6 +83,7 @@ class DownloadThread(QThread):
                         if total_size > 0:
                             progress = int((downloaded / total_size) * 100)
                             self.progress_signal.emit(progress)
+
             self.finished_signal.emit(self.file_path)
         except Exception as e:
             if not self.is_canceled:  # 非取消情况才触发错误信号

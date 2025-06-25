@@ -279,7 +279,7 @@ class TimeRangeDialog(QDialog):
     def _on_suggest_ready(self, win_list):
         self._reset_suggest_btn()
         if not win_list:
-            QMessageBox.information(self, "提示", "未找到合适的稳定区段")
+            QMessageBox.information(self, "提示", "未检测到高信息量区域")
             return
 
         # 清掉旧推荐高亮

@@ -86,7 +86,7 @@ class TrendAnalysisDialog(QDialog):
 
         # 应用现代化样式
         self.apply_modern_style()
-
+        self._start_fetch()
         # 构建UI
         self._build_ui()
 
@@ -102,7 +102,7 @@ class TrendAnalysisDialog(QDialog):
 
         # 加载点和开始获取数据
         self._load_points()
-        self._start_fetch()
+
         self.trend_update_timer = QTimer(self)
         self.trend_update_timer.setSingleShot(True)
         self.trend_update_timer.timeout.connect(self._update_trends)
@@ -695,11 +695,11 @@ class TrendAnalysisDialog(QDialog):
         self.splitter.addWidget(right)
 
         # 设置拉伸因子，使右侧能够自适应填满空间
-        self.splitter.setStretchFactor(0, 0)  # 左侧不拉伸
+        self.splitter.setStretchFactor(1, 2)  # 左侧不拉伸
         self.splitter.setStretchFactor(1, 4)  # 增大右侧拉伸比例
 
         # 初始分割比例设置：减小左侧宽度，确保右侧图表有更多空间
-        self.splitter.setSizes([200, self.width() - 200])
+        self.splitter.setSizes([400, self.width() - 400])
 
         # 将分割器添加到主布局
         main_layout.addWidget(self.splitter)
@@ -719,7 +719,7 @@ class TrendAnalysisDialog(QDialog):
         """根据窗口大小重新调整分割器比例"""
         window_width = self.width()
         # 减小左侧面板宽度，为图表区域留出更多空间
-        left_width = min(max(200, int(window_width * 0.15)), 300)  # 进一步减小左侧比例
+        left_width = min(max(400, int(window_width * 0.2)), 400)  # 进一步减小左侧比例
         right_width = window_width - left_width
         self.splitter.setSizes([left_width, right_width])
 

@@ -7,25 +7,6 @@ from tenacity import retry, stop_after_attempt, wait_fixed, retry_if_exception_t
 from PyQt5.QtWidgets import QTreeWidgetItem
 
 
-class BaseParameter(ABC):
-    parameter_name: str = ""
-    parameter_desc: str = ""
-    params: dict = {}
-    param_default: dict = {}
-    message_status = None
-    parent = None
-
-    def __init__(self, parent=None):
-        self.parent = parent
-
-    @abstractmethod
-    def edit_parameter(self, item: QTreeWidgetItem, current_value: str, **kwargs) -> str:
-        pass
-
-    def load_parameter(self, value: str) -> str:
-        return value
-
-
 class BaseTool(ABC):
     base_url: str
     api_key: str
