@@ -136,7 +136,7 @@ class JSONEditor(QWidget):
         self.font_size = round(10 * self.scale)
 
         # 撤销/重做系统
-        self.undo_stack = QUndoStack(self)
+        self.undo_stacks = {}  # 每个文件单独的撤销栈
         self.bind_shortcuts()
         self.setup_log_viwer()
         self.init_ui()
@@ -484,6 +484,8 @@ class JSONEditor(QWidget):
             self.open_files[self.current_file] = self.capture_tree_data()
             # 2. 保存展开/选中状态
             self.file_states[self.current_file] = self.capture_tree_state()
+            if hasattr(self, 'undo_stack'):
+                self.undo_stacks[self.current_file] = self.undo_stack
 
         # 切换逻辑
         self.current_file = filename
@@ -493,8 +495,8 @@ class JSONEditor(QWidget):
         # 恢复展开/选中状态
         self.restore_tree_state(filename)
 
-        # 切换文件时清空撤销栈
-        self.undo_stack.clear()
+        # 获取目标文件的 undo stack 或新建一个
+        self.undo_stack = self.undo_stacks.get(filename, QUndoStack(self))
 
         # 更新状态栏的文件信息
         # 统计配置中的参数数量
@@ -529,6 +531,9 @@ class JSONEditor(QWidget):
 
         # 6. 从 UI 上删按钮
         self.tab_bar.remove_tab_widget(filename)
+
+        # 删除该文件的撤销栈
+        self.undo_stacks.pop(filename, None)
 
         # 7. 如果删完已经没有任何文件，直接 new
         if not self.open_files:
@@ -596,6 +601,10 @@ class JSONEditor(QWidget):
         name = self.tab_bar.add_tab(name)
         # 记录打开的配置文件
         self.open_files[name] = copy.deepcopy(self.config.init_params)
+
+        # 为新文件创建一个新的撤销栈
+        self.undo_stacks[name] = QUndoStack(self)
+
         # 3. 立即切到这个新 tab
         #    这样 current_file、tree、状态 都会被正确赋值
         self.switch_to_file(name)

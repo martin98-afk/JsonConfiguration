@@ -235,6 +235,10 @@ class PointSelectorDialog(QDialog):
         main.addLayout(body)
 
         self.start_fetching()
+        # 加载 & 异步拉取
+        self.all_points = load_point_cache()
+        if self.all_points:
+            self.populate_ui(self.all_points)
 
     def set_curve_name(self, name: str):
         self.curve_name_label.setText(f"当前曲线: {name}")
@@ -253,10 +257,24 @@ class PointSelectorDialog(QDialog):
         self.populate_ui(results)
 
     def populate_ui(self, results):
+        new_set = set(results)
+        old_set = set(self.type_list.item(i).text() for i in range(self.type_list.count()))
+
+        # 删除旧的多余项
+        for i in reversed(range(self.type_list.count())):  # 倒序删除防止索引错乱
+            item_text = self.type_list.item(i).text()
+            if item_text not in new_set:
+                self.type_list.takeItem(i)
+
+        # 添加新增项
         for t in results:
-            self.type_list.addItem(t)
+            if t not in old_set:
+                self.type_list.addItem(t)
+
+        # 保持选中状态或默认选第一个
         if self.type_list.count():
-            self.type_list.setCurrentRow(0)
+            if self.type_list.currentRow() == -1:
+                self.type_list.setCurrentRow(0)
             self.on_type_selected(self.type_list.currentItem())
 
     def on_type_selected(self, item):

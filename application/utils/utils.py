@@ -160,3 +160,12 @@ def get_button_style_sheet(bg_color=None):
                 border: none;
             }}
         """
+
+
+def seed_everything(seed: int = 1):
+    import random
+    import os
+    import numpy as np
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)

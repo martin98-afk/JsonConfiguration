@@ -8,6 +8,7 @@ from PyQt5.QtGui import QColor
 
 from application.utils.config_handler import load_config, save_history, save_config, HISTORY_PATH
 from application.json_editor import JSONEditor
+from application.utils.utils import seed_everything
 
 
 def rigister_parameter():
@@ -17,6 +18,7 @@ def rigister_parameter():
 
 
 def run_app():
+    seed_everything()
     os.environ["OMP_NUM_THREADS"] = "3"
     app = QApplication(sys.argv)
     QApplication.setDoubleClickInterval(300)  # 全局设置为 300 毫秒

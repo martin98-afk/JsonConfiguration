@@ -196,13 +196,6 @@ class TrendAnalysisDialog(QDialog):
                 height: 12px;
             }
 
-            QDateTimeEdit {
-                border: 1px solid #ced4da;
-                border-radius: 4px;
-                padding: 5px;
-                background-color: white;
-            }
-
             QLabel {
                 color: #495057;
             }
@@ -368,20 +361,29 @@ class TrendAnalysisDialog(QDialog):
         right_layout.setContentsMargins(10, 8, 10, 8)
         right_layout.setSpacing(8)
 
-        # 第一行：参数类型 + 初始化
-        row1_frame = QFrame()
-        row1_frame.setStyleSheet(
+        # 已选测点区域
+        selected_frame = QFrame()
+        selected_frame.setStyleSheet(
             """
             QFrame {
-                background-color: #f1f3f5;
-                border-radius: 6px;
-                padding: 4px;
+                border: 1px solid #dee2e6;
+                border-radius: 4px;
+                background-color: white;
             }
         """
         )
-        row1 = QHBoxLayout(row1_frame)
-        param_label = QLabel("参数类型：")
-        row1.addWidget(param_label)
+        selected_layout = QVBoxLayout(selected_frame)
+        selected_layout.setContentsMargins(8, 8, 8, 8)
+        selected_layout.setSpacing(5)
+
+        # 简化标题与提示
+        selected_header = QHBoxLayout()
+        selected_title = QLabel("已选测点列表 (双击移除)          ")
+        selected_title.setStyleSheet("color: #495057; font-size: 12px;")
+        selected_header.addWidget(selected_title)
+
+        param_label = QLabel("当前参数类型：")
+        selected_header.addWidget(param_label)
 
         self.param_type_combo = QComboBox()
         self.param_types = self.parent.config.get_params_name()
@@ -410,42 +412,15 @@ class TrendAnalysisDialog(QDialog):
         """
         )
         self.param_type_combo.currentIndexChanged.connect(self._on_param_type_changed)
-        row1.addWidget(self.param_type_combo)
-        config_refresh_label = QLabel("初始化新加入测点配置：")
-        config_refresh_label.setStyleSheet("color: #495057;")
-        row1.addWidget(config_refresh_label)
+        selected_header.addWidget(self.param_type_combo)
         self.load_points_btn = QPushButton()
-        self.load_points_btn.setIcon(get_icon("change"))
-        self.load_points_btn.setToolTip("初始化新测点配置")
+        self.load_points_btn.setIcon(get_icon("save"))
+        self.load_points_btn.setToolTip("初始化新加入测点")
         self.load_points_btn.setCursor(Qt.PointingHandCursor)
         self.load_points_btn.setStyleSheet(get_button_style_sheet())
         self.load_points_btn.clicked.connect(self.add_tags)
-        row1.addWidget(self.load_points_btn)
-        row1.addStretch()
-        right_layout.addWidget(row1_frame)
-
-        # 已选测点区域
-        selected_frame = QFrame()
-        selected_frame.setStyleSheet(
-            """
-            QFrame {
-                border: 1px solid #dee2e6;
-                border-radius: 4px;
-                background-color: white;
-            }
-        """
-        )
-        selected_layout = QVBoxLayout(selected_frame)
-        selected_layout.setContentsMargins(8, 8, 8, 8)
-        selected_layout.setSpacing(5)
-
-        # 简化标题与提示
-        selected_header = QHBoxLayout()
-        selected_title = QLabel("已选测点 (双击移除)")
-        selected_title.setStyleSheet("color: #495057; font-size: 12px;")
-        selected_header.addWidget(selected_title)
+        selected_header.addWidget(self.load_points_btn)
         selected_header.addStretch()
-
         selected_layout.addLayout(selected_header)
 
         # 表格
@@ -464,13 +439,6 @@ class TrendAnalysisDialog(QDialog):
             QTableWidget::item {
                 padding: 4px;
                 text-align: center;
-            }
-            QHeaderView::section {
-                background-color: #e9ecef;
-                padding: 6px;
-                border: none;
-                font-weight: bold;
-                color: #495057;
             }
             QTableWidget::item:first-child {
                 width: 50px;
