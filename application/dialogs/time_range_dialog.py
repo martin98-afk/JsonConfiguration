@@ -1,10 +1,9 @@
 import ctypes
-import re
 from collections import defaultdict
 
 import pyqtgraph as pg
 from datetime import datetime
-from PyQt5.QtCore import Qt, QDateTime, QThreadPool, QSize, QPropertyAnimation, QEvent, QPoint
+from PyQt5.QtCore import Qt, QDateTime, QThreadPool, QEvent
 from PyQt5.QtGui import QColor, QFont
 from PyQt5.QtWidgets import (
     QApplication,
@@ -19,16 +18,13 @@ from PyQt5.QtWidgets import (
     QListWidgetItem,
     QScrollArea,
     QDialog,
-    QAbstractItemView,
     QCheckBox,
     QSpacerItem,
     QSizePolicy,
     QComboBox,
-    QMessageBox, QMenu,
-)
+    QMessageBox, )
 from application.dialogs.time_selector_dialog import TimeSelectorDialog
-from application.tools.jenks_breakpoint import JenksBreakpoint
-from application.tools.train_data_select import TrainDataSelect
+from application.tools.algorithm.train_data_select import TrainDataSelect
 from application.utils.data_format_transform import list2str
 from application.utils.threading_utils import Worker
 from application.utils.utils import styled_dt, get_icon, get_button_style_sheet

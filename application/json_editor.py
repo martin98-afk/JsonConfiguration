@@ -22,7 +22,8 @@ from PyQt5.QtGui import QColor, QGuiApplication, QIcon
 from PyQt5.QtGui import QFont, QKeySequence
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTreeWidgetItem, QWidget, QMenu, QSplitter, QApplication,
-    QMessageBox, QScrollArea, QPlainTextEdit, QSizePolicy, QDesktopWidget, QStatusBar, QUndoStack, QUndoCommand
+    QMessageBox, QScrollArea, QPlainTextEdit, QSizePolicy, QDesktopWidget, QStatusBar, QUndoStack, QUndoCommand,
+    QAction, QLabel, QWidgetAction
 )
 from PyQt5.QtWidgets import (
     QFileDialog, QInputDialog, QComboBox, QShortcut, QAbstractItemView, QLineEdit
@@ -172,25 +173,6 @@ class JSONEditor(QWidget):
         pt11 = round(10 * self.scale)
         pt12 = round(12 * self.scale)
 
-        # 添加紧凑型状态栏
-        self.status_bar = QStatusBar(self)
-        self.status_bar.setStyleSheet("""
-            QStatusBar {
-                background-color: #f8f9fa;
-                border-top: 1px solid #e9ecef;
-                color: #6c757d;
-                padding: 1px 8px;
-                font-size: 9pt;
-                min-height: 20px;
-                max-height: 20px;
-            }
-            QStatusBar::item {
-                border: none;
-                margin: 0px;
-            }
-        """)
-        self.status_bar.setFixedHeight(20)  # 固定高度使其更紧凑
-
         # 样式表
         self.setStyleSheet(f"""
             QWidget {{ font-family: "Microsoft YaHei"; font-size: {pt11}pt; background-color: #f5f7fa; }}
@@ -213,7 +195,7 @@ class JSONEditor(QWidget):
             }}
             QScrollBar:vertical {{
                 border: none;
-                background: #f8f9fa;
+                background: transparent;
                 width: 10px;
                 margin: 0px;
             }}
@@ -303,6 +285,25 @@ class JSONEditor(QWidget):
         # 初始隐藏日志面板（设置宽度为0）
         self.splitter.setSizes([1, 0, 4])
 
+        # 添加紧凑型状态栏
+        self.status_bar = QStatusBar(self)
+        self.status_bar.setStyleSheet("""
+                    QStatusBar {
+                        background-color: #f8f9fa;
+                        border-top: 1px solid #e9ecef;
+                        color: #6c757d;
+                        padding: 1px 8px;
+                        font-size: 9pt;
+                        min-height: 20px;
+                        max-height: 20px;
+                    }
+                    QStatusBar::item {
+                        border: none;
+                        margin: 0px;
+                    }
+                """)
+        self.status_bar.setFixedHeight(20)  # 固定高度使其更紧凑
+
         # 添加文件信息标签到状态栏
         self.file_info_label = QPushButton("未打开文件")
         self.file_info_label.setStyleSheet(
@@ -311,23 +312,60 @@ class JSONEditor(QWidget):
         self.status_bar.addPermanentWidget(self.file_info_label)
 
         # 添加撤销/重做按钮到状态栏
-        undo_btn = QPushButton("↩️ 撤销")
+        undo_btn = QPushButton("撤销")
+        undo_btn.setIcon(get_icon("撤销"))
         undo_btn.setStyleSheet(
             "QPushButton { border: none; background: transparent; color: #666; padding: 0px 4px; }"
             "QPushButton:hover { color: #1890ff; }"
         )
-        undo_btn.setToolTip("撤销上一操作 (Ctrl+Z)")
+        undo_btn.setToolTip(
+            "<div style='background-color:#f0f0f0; color:#333333; "
+            "border:1px solid #cccccc; padding:4px 8px;'>撤销上一操作 (Ctrl+Z)</div>"
+        )
         undo_btn.clicked.connect(self.undo_action)
         self.status_bar.addPermanentWidget(undo_btn)
 
-        redo_btn = QPushButton("↪️ 重做")
+        redo_btn = QPushButton("重做")
+        redo_btn.setIcon(get_icon("重做"))
         redo_btn.setStyleSheet(
             "QPushButton { border: none; background: transparent; color: #666; padding: 0px 4px; }"
             "QPushButton:hover { color: #1890ff; }"
         )
-        redo_btn.setToolTip("重做操作 (Ctrl+Y)")
+        redo_btn.setToolTip(
+            "<div style='background-color:#f0f0f0; color:#333333; "
+            "border:1px solid #cccccc; padding:4px 8px;'>重做操作 (Ctrl+Y)</div>"
+        )
         redo_btn.clicked.connect(self.redo_action)
         self.status_bar.addPermanentWidget(redo_btn)
+
+        # 在 __init__ 方法中合适的位置添加：
+        self.menu_button = QPushButton()
+        self.menu_button.setIcon(get_icon("更多"))
+        self.menu_button.setToolTip(
+            "<div style='background-color:#f0f0f0; color:#333333; "
+            "border:1px solid #cccccc; padding:4px 8px;'>更多</div>"
+        )
+        self.menu_button.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: #666;
+                font-size: 14pt;
+                border: none;
+                padding: 0px;
+            }
+            QPushButton:hover {
+                background-color: #adb5bd;
+                color: white;
+            }
+            QPushButton:pressed {
+                background-color: #e6e6e6;  /* 按下背景变灰 */
+                border-radius: 4px;
+            }
+        """)
+        self.menu_button.clicked.connect(self.show_app_menu)
+
+        # 将 menu_button 添加到状态栏右边
+        self.status_bar.addPermanentWidget(self.menu_button)
 
         # 添加状态栏到主布局
         main_layout.addWidget(self.status_bar)
@@ -676,7 +714,10 @@ class JSONEditor(QWidget):
             btn = QPushButton()  # 只显示 emoji
             btn.setIcon(get_icon(emoji))  # 设置图标
             btn.setIconSize(QSize(int(0.7 * btn_size), int(0.7 * btn_size)))  # 设置图标大小与按钮一致
-            btn.setToolTip(name)  # 将文字作为 tooltip
+            btn.setToolTip(
+                "<div style='background-color:#f0f0f0; color:#333333; "
+                f"border:1px solid #cccccc; padding:4px 8px;'>{name}</div>"
+            )  # 将文字作为 tooltip
             btn.setObjectName("ToolButton")
             btn.setFixedSize(btn_size, btn_size)
             btn.setFocusPolicy(Qt.NoFocus)
@@ -1280,8 +1321,6 @@ class JSONEditor(QWidget):
         # 视图操作作为一级菜单项
         menu.addAction("展开全部", self.tree.expandAll)
         menu.addAction("折叠全部", self.tree.collapseAll)
-        if hasattr(self, "updater"):
-            menu.addAction("检查工具更新", self.updater.check_update)
         menu.exec_(self.tree.viewport().mapToGlobal(pos))
 
     def copy_item(self, item=None):
@@ -1352,9 +1391,9 @@ class JSONEditor(QWidget):
 
     def gather_tags(self,
                     data: dict = None,
-                    tag_name: str="测点名",
+                    tag_name: str = "测点名",
                     type: Any = "",
-                    with_type: bool=False) -> list:
+                    with_type: bool = False) -> list:
         """
         将配置文件中的配置参数名称进行提取
         :param data: 待提取配置文件
@@ -1841,11 +1880,9 @@ class JSONEditor(QWidget):
                     background: none;
                 }}
             """)
-            self.log_viewer.setWindowTitle("日志输出")
-            self.log_viewer.resize(900, 500)
             # 启用垂直滚动条自动到底部
             self.log_viewer.verticalScrollBar().rangeChanged.connect(
-            lambda: self.log_viewer.verticalScrollBar().setValue(
+                lambda: self.log_viewer.verticalScrollBar().setValue(
                     self.log_viewer.verticalScrollBar().maximum()
                 )
             )
@@ -1884,3 +1921,78 @@ class JSONEditor(QWidget):
             parent=self
         )
         dlg.show()
+
+    def show_app_menu(self):
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: white;
+                border: 1px solid #ccc;
+                border-radius: 6px;
+                font-size: 11pt;
+                padding: 4px 0px;
+            }
+            QMenu::item {
+                padding: 0px;
+                margin: 0px;
+            }
+            QMenu::item:selected {
+                background-color: transparent;
+            }
+        """)
+
+        self.add_menu_action(menu, "版本更新", "检查更新", self.updater.check_update)
+        self.add_menu_action(menu, "关于", "关于", self.show_about_dialog)
+
+        pos = self.menu_button.mapToGlobal(QPoint(0, 0))
+        menu_width = menu.sizeHint().width()
+        menu_height = menu.sizeHint().height()
+
+        target_pos = QPoint(pos.x() - menu_width, pos.y() - menu_height)
+        menu.exec_(target_pos)
+
+    def show_about_dialog(self):
+        QMessageBox.about(self, "关于",
+                          f"配置编辑器 v{self.updater.current_version}\n"
+                          "© 2025 Luculent\n"
+                          "用于多配置文件编辑与管理")
+
+    # 自定义方法添加图标+文本的菜单项
+    def add_menu_action(self, menu, icon_name, text, callback):
+        widget = QWidget(menu)
+        layout = QHBoxLayout(widget)
+        layout.setContentsMargins(8, 4, 8, 4)
+        layout.setSpacing(10)  # 控制图标与文字间距
+
+        icon_label = QLabel()
+        icon = QIcon(get_icon(icon_name)).pixmap(20, 20)
+        icon_label.setPixmap(icon)
+
+        text_label = QLabel(text)
+        text_label.setStyleSheet("font-size: 11pt;")
+
+        layout.addWidget(icon_label)
+        layout.addWidget(text_label)
+        layout.addStretch()
+
+        action = QWidgetAction(menu)
+        action.setDefaultWidget(widget)
+        menu.addAction(action)
+
+        # 设置悬浮高亮
+        widget.setStyleSheet("""
+            QWidget {
+                background-color: transparent;
+            }
+            QWidget:hover {
+                background-color: #e6f7ff;
+                border-radius: 4px;
+            }
+        """)
+
+        def on_click(event):
+            if event.button() == Qt.LeftButton:
+                callback()
+                menu.close()
+
+        widget.mousePressEvent = on_click

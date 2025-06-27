@@ -201,6 +201,8 @@ param-structure:
       识别种类:
         type: text
         default: smoke
+      平台地址:
+        type: text
       运行设备:
         type: dropdown
         default: cpu

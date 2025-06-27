@@ -363,27 +363,13 @@ class TrendAnalysisDialog(QDialog):
 
         # 已选测点区域
         selected_frame = QFrame()
-        selected_frame.setStyleSheet(
-            """
-            QFrame {
-                border: 1px solid #dee2e6;
-                border-radius: 4px;
-                background-color: white;
-            }
-        """
-        )
         selected_layout = QVBoxLayout(selected_frame)
         selected_layout.setContentsMargins(8, 8, 8, 8)
         selected_layout.setSpacing(5)
 
-        # 简化标题与提示
-        selected_header = QHBoxLayout()
-        selected_title = QLabel("已选测点列表 (双击移除)          ")
-        selected_title.setStyleSheet("color: #495057; font-size: 12px;")
-        selected_header.addWidget(selected_title)
-
+        parameter_type = QHBoxLayout()
         param_label = QLabel("当前参数类型：")
-        selected_header.addWidget(param_label)
+        parameter_type.addWidget(param_label)
 
         self.param_type_combo = QComboBox()
         self.param_types = self.parent.config.get_params_name()
@@ -412,15 +398,21 @@ class TrendAnalysisDialog(QDialog):
         """
         )
         self.param_type_combo.currentIndexChanged.connect(self._on_param_type_changed)
-        selected_header.addWidget(self.param_type_combo)
+        parameter_type.addWidget(self.param_type_combo)
         self.load_points_btn = QPushButton()
         self.load_points_btn.setIcon(get_icon("save"))
         self.load_points_btn.setToolTip("初始化新加入测点")
         self.load_points_btn.setCursor(Qt.PointingHandCursor)
         self.load_points_btn.setStyleSheet(get_button_style_sheet())
         self.load_points_btn.clicked.connect(self.add_tags)
-        selected_header.addWidget(self.load_points_btn)
-        selected_header.addStretch()
+        parameter_type.addWidget(self.load_points_btn)
+        parameter_type.addStretch()
+        # 简化标题与提示
+        selected_header = QHBoxLayout()
+        selected_title = QLabel("已选测点列表 (双击移除)")
+        selected_title.setStyleSheet("color: #495057; font-size: 12px; border: 1px solid #dee2e6;border-radius: 4px;background-color: white;")
+        selected_header.addWidget(selected_title)
+        selected_layout.addLayout(parameter_type)
         selected_layout.addLayout(selected_header)
 
         # 表格
@@ -777,7 +769,6 @@ class TrendAnalysisDialog(QDialog):
         # all_items = sorted(all_items, key=lambda x: x[1], reverse=True)
         all_items = [(t, p) for t, p, _ in all_items]
         selected_point_names = []
-        self.selected_points = []
         for _, p in all_items:
             if (
                 p.get("测点名") not in selected_point_names

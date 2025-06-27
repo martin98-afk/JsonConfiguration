@@ -1,17 +1,16 @@
 import re
 import numpy as np
-import numpy as np
 import pyqtgraph as pg
 
 from typing import List
-from sklearn.mixture import GaussianMixture
 from PyQt5.QtCore import Qt, QDateTime, QThreadPool, QTimer, QPoint
 from PyQt5.QtWidgets import (
-    QDialog, QApplication, QVBoxLayout, QHBoxLayout,
-    QPushButton, QDateTimeEdit, QLabel, QDoubleSpinBox, QComboBox, QMenu, QToolTip
+    QDialog, QVBoxLayout, QHBoxLayout,
+    QPushButton, QDateTimeEdit, QLabel, QDoubleSpinBox, QComboBox, QToolTip
 )
 
-from application.tools.jenks_breakpoint import JenksBreakpoint
+from application.tools.algorithm.calc_normal_range import CalcNormalRange
+from application.tools.algorithm.jenks_breakpoint import JenksBreakpoint
 from application.utils.threading_utils import Worker
 from application.utils.utils import styled_dt, get_icon, get_button_style_sheet
 from application.widgets.draggable_lines import DraggableLine
@@ -195,37 +194,10 @@ class IntervalPartitionDialog(QDialog):
 
     def _compute_ai_breaks(self, data: np.ndarray, type_: str):
         if type_ == "partition":
-            jenks_tool = JenksBreakpoint()
-            # 忽略首尾
-            return jenks_tool.call(data)
+            return JenksBreakpoint().call(data)
         else:
-            def robust_range(data, n_components=3, std_scale=3):
-                data = np.asarray(data).reshape(-1, 1)
 
-                # 判断是否为离散变量（唯一值较少）
-                unique_values = np.unique(data)
-                if len(unique_values) <= 10:
-                    return [float(data.min()), float(data.max())]
-
-                # 拟合 GMM 模型
-                gmm = GaussianMixture(n_components=n_components, random_state=0)
-                gmm.fit(data)
-
-                # 获取每个分布的均值和标准差
-                means = gmm.means_.flatten()
-                stds = np.sqrt(gmm.covariances_).flatten()
-
-                # 找到最左和最右峰的均值及其 std
-                lower = min(means[id] - std_scale * stds[id] for id in range(len(means)))
-                upper = max(means[id] + std_scale * stds[id] for id in range(len(means)))
-
-                trimmed = data[(data >= lower) & (data <= upper)]
-                if trimmed.size == 0:
-                    trimmed = data
-
-                return [float(trimmed.min()), float(trimmed.max())]
-
-            return robust_range(data)
+            return CalcNormalRange().call(data)
 
     def _on_ai_finished(self, breaks):
         self._reset_ai_btn()

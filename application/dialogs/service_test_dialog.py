@@ -24,7 +24,7 @@ from PyQt5.QtWidgets import (
 )
 from loguru import logger
 
-from application.tools.servicves_test import ServicesTest
+from application.tools.api_service.servicves_test import ServicesTest
 from application.utils.threading_utils import Worker
 from application.utils.utils import get_icon, get_button_style_sheet
 

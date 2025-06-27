@@ -5,12 +5,12 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableWidget, QTableWidgetItem, QHeaderView, QMessageBox,
     QAbstractItemView, QSplitter, QDateTimeEdit, QComboBox,
-    QWidget, QLineEdit, QProgressDialog
+    QWidget, QLineEdit
 )
 import pyqtgraph as pg
 from application.dialogs.services_selector_dialog import ServiceSelectorDialog
-from application.tools.trenddb_fectcher import DataFetchWorker
-from application.tools.servicves_test import ServiceTestFetchWorker, ServicesTest
+from application.tools.api_service.trenddb_fectcher import DataFetchWorker
+from application.tools.api_service.servicves_test import ServiceTestFetchWorker, ServicesTest
 from application.widgets.trend_plot_widget import TrendPlotWidget
 
 

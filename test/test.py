@@ -8,9 +8,9 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QFont, QTextCursor, QColor, QTextCharFormat
 
-from application.tools.service_logger import ServiceLogger
-from application.tools.services_search import SeviceSearcher
-from application.tools.servicves_test import ServicesTest
+from application.tools.api_service.service_logger import ServiceLogger
+from application.tools.api_service.services_search import SeviceSearcher
+from application.tools.api_service.servicves_test import ServicesTest
 
 base_url = "http://172.16.134.122:8900"
 api_key = (
