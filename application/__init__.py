@@ -22,9 +22,6 @@ def run_app():
     os.environ["OMP_NUM_THREADS"] = "3"
     app = QApplication(sys.argv)
     QApplication.setDoubleClickInterval(300)  # 全局设置为 300 毫秒
-    # 设置应用程序级别样式
-    QApplication.setStyle(QStyleFactory.create("Fusion"))
-    QApplication.setAttribute(Qt.AA_EnableHighDpiScaling)
     font = QFont("微软雅黑", 10)
     app.setFont(font)
     palette = QPalette()

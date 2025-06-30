@@ -2,6 +2,12 @@ title: 能耗优化参数配置工具
 api-tools:
   prefix: http://172.16.134.122:8900
   api-key: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiIsImtpZCI6IjAwMiJ9.eyJ0ZW5hbnROYW0iOiLnp5_miLfnrqHnkIblhazlj7giLCJvcmdOYW1lIjoi5piG6ZKiIiwiaXNzIjoiU1lTIiwidXNyUm9sZSI6IkdHU0NHTCIsInNlbGVjdGVkT3JnIjoiMTg1ODc4MTAxMjU1MzYyOTY5NiIsImFkbWluRmxnIjoiMSIsIm9yZ0lkIjoiMTg1ODc5NjUzODkxNDkzMDY4OCIsInVzck5hbSI6Iuezu-e7n-euoeeQhuWRmCIsInRlbmFudE5vIjoiMSIsIndlYlNvY2tldElwIjoiZGVmYXVsdCIsImlhdCI6MTc0OTc5NDIwMSwia2F0IjoxNzQ5Nzc0NDUwODM5fQ.rM7KBJ_UrLfriScotpdMNUspcR0xonyFM-d2NnWHLiw
+  postgres:
+    host: 172.16.134.122
+    port: 5030
+    user: postgres
+    password: Sushine@2024Nov!
+    database: sushine_business
   file_upload:
     type: file-upload
     upload_path: /rest/di/dataset/upload
@@ -265,7 +271,7 @@ param-template:
     params_default:
     - {}
 version-control:
-  版本管理方式: gitee
+  版本管理方式: github
   gitee:
     项目名称: dingmama123141/JsonConfiguration
     令牌: 577df5e6829a600271587e1af4793fb7

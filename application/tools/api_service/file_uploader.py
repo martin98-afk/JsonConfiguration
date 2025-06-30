@@ -107,7 +107,7 @@ class DatasetUploader(BaseTool):
             tree_no: str,
             file_path: str,
             file_name: str,
-    ) -> bool:
+    ) -> dict:
         """
         保存记录（表单请求），返回 True/False
         """
@@ -128,7 +128,7 @@ class DatasetUploader(BaseTool):
             # 假设返回字段 code == 0 表示成功
             if result.get("code") == 0:
                 logger.info(f"保存记录成功: {data}")
-                return True
+                return data
             else:
                 logger.error(f"保存记录失败, 返回信息: {result}")
         except httpx.RequestError as exc:
@@ -137,7 +137,7 @@ class DatasetUploader(BaseTool):
             logger.error(f"保存记录 HTTP 错误：{exc}")
         except Exception as exc:
             logger.error(f"保存记录时其他错误：{exc}")
-        return False
+        return {}
 
     def call(
             self,
@@ -146,14 +146,14 @@ class DatasetUploader(BaseTool):
             dataset_desc: str,
             tree_name: str,
             tree_no: str,
-    ) -> bool:
+    ) -> dict:
         """
         一体化：先上传文件，再保存记录
         """
         info = self.upload_file(file_path)
         if not info:
             logger.error("上传文件失败，无法保存记录")
-            return False
+            return {}
         return self.save_record(
             dataset_name=dataset_name,
             dataset_desc=dataset_desc,

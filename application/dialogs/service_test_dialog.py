@@ -63,7 +63,7 @@ class JSONServiceTester(QMainWindow):
         # 定时器定期处理日志队列（每100毫秒）
         self.queue_timer = QTimer(self)
         self.queue_timer.timeout.connect(self.process_log_queue)
-        self.queue_timer.start(100)
+        self.queue_timer.start(200)
 
         # 初始化服务组件
         try:

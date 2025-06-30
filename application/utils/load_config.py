@@ -14,6 +14,9 @@ from application.tools.api_service.service_params import ServiceParamsFetcher
 from application.tools.api_service.service_reonline import ServiceReonline
 from application.tools.api_service.services_search import SeviceListSearcher
 from application.tools.api_service.trenddb_fectcher import TrenddbFetcher
+from application.tools.database.di_flow import DiFlow
+from application.tools.database.di_flow_param_modify import DiFlowParamsModify
+from application.tools.database.di_flow_params import DiFlowParams
 from application.utils.threading_utils import Worker
 from application.utils.utils import resource_path
 
@@ -39,6 +42,7 @@ class ParamConfigLoader(QObject):
         self.params_default = {}
         self.params_options = {}
         self.subchildren_default = {}
+        self.model_binding_structure = {}
         self.api_tools = {}
         self.tab_names = {}
         self.tool_type_dict = {}
@@ -162,6 +166,13 @@ class ParamConfigLoader(QObject):
                         self.tool_type_dict.setdefault(tool_type, []).append(name)
                 except Exception as e:
                     logger.error(f"加载工具 {tool_name} 失败: {e}")
+
+        # 增加连接postgres数据库的工具
+        if "postgres" in cfg:
+            tool_list["di_flow"] = DiFlow(**cfg["postgres"])
+            tool_list["di_flow_params"] = DiFlowParams(**cfg["postgres"])
+            tool_list["di_flow_params_modify"] = DiFlowParamsModify(**cfg["postgres"])
+
         return tool_list
 
     # ==============================
@@ -191,6 +202,22 @@ class ParamConfigLoader(QObject):
         self.param_structure = param_structure
         self.init_params = self._recursive_parse(
             param_structure, self.params_type, self.params_default, self.params_options
+        )
+
+    def add_binding_model_params(self, param_structure: dict):
+        self.model_binding_structure = param_structure
+        self.init_params = self._recursive_parse(
+            self.model_binding_structure, self.params_type, self.params_default, self.params_options
+        )
+
+    def remove_binding_model_params(self):
+        self.params_type = {}
+        self.params_default = {}
+        self.params_options = {}
+        self.subchildren_default = {}
+        self.model_binding_structure = {}
+        self.init_params = self._recursive_parse(
+            self.param_structure, self.params_type, self.params_default, self.params_options
         )
 
     def _recursive_parse(
@@ -248,3 +275,22 @@ class ParamConfigLoader(QObject):
             for key, value in self.param_structure.items()
             if value.get("type") == "subgroup" and "测点名" in value.get("subchildren")
         ]
+
+    def get_upload_name(self, structure=None, path_prefix=""):
+        if structure is None:
+            structure = self.model_binding_structure
+        for key, value in structure.items():
+            if value.get("type") == "upload":
+                return f"{path_prefix}/{key}"
+            elif value.get("children") is not None:
+                path = self.get_upload_name(value.get("children"), f"{path_prefix}/{key}" if path_prefix else key)
+                if path: return path
+        return ""
+
+    def get_model_binding_param_no(self, path):
+        names = path.split("/")
+        model_name = names[0]
+        component_name = names[1]
+        param_name = "/".join(names[2:]) if len(names) > 3 else names[2]
+        return self.model_binding_structure.get(model_name).get("children").get(component_name).get("children").get(
+            param_name).get("id")
