@@ -1,5 +1,16 @@
 [
   {
+    "version": "1.1.1",
+    "publishDate": "2025-06-30 18:36",
+    "forceUpdate": true,
+    "publishNotes": [
+      "feat(database): 添加 PostgreSQL 数据库工具类",
+      "- 新增 DiFlow、DiFlowParams 和 DiFlowParamsModify 三个数据库工具类",
+      "- 实现了连接数据库、查询流程数据、修改参数等功能",
+      "- 添加了数据库连接配置到 default.yaml 文件中",
+      "- 删除了 application/__init__.py 中的冗余代码"
+    ]
+  },{
     "version": "1.1.0",
     "publishDate": "2025-06-27 10:14",
     "forceUpdate": true,
