@@ -57,7 +57,7 @@ from application.utils.utils import (
     get_icon,
     get_file_name,
     error_catcher_decorator,
-    get_button_style_sheet,
+    get_button_style_sheet, get_unique_name,
 )
 from application.widgets.draggable_tab_bar import DraggableTabBar
 from application.widgets.draggable_tree_widget import DraggableTreeWidget
@@ -112,7 +112,7 @@ class JSONEditor(QWidget):
         self.resize(self.window_width, self.window_height)
         # 窗口大小由外部 showMaximized() 或动态 resize 控制
         self.setAcceptDrops(True)
-        self._expanded = False
+        self.database_loaded = False  # 当前数据库工具是否完成加载
         self.clipboard_item = None
         self.thread_pool = QThreadPool.globalInstance()
         # 文件管理
@@ -304,8 +304,7 @@ class JSONEditor(QWidget):
         self.status_bar.setFixedHeight(20)  # 固定高度使其更紧凑
 
         # 创建模型选择按钮（带下拉箭头）
-        self.model_selector_btn = QPushButton("<无关联模型>")
-        self.model_selector_btn.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)  # 允许水平扩展
+        self.model_selector_btn = QPushButton("<无关联模型>")  # 允许水平扩展
         self.model_selector_btn.setStyleSheet(
             "QPushButton { border: none; background: transparent; color: #666; padding: 0px 4px; }"
             "QPushButton:hover { color: #1890ff; }"
@@ -314,7 +313,6 @@ class JSONEditor(QWidget):
 
         # 替换原来的文件信息标签
         self.status_bar.addPermanentWidget(self.model_selector_btn)
-
 
         # 添加撤销/重做按钮到状态栏
         undo_btn = QPushButton("撤销")
@@ -375,7 +373,8 @@ class JSONEditor(QWidget):
         # 添加状态栏到主布局
         main_layout.addWidget(self.status_bar)
 
-    def show_model_dropdown(self):
+    @error_catcher_decorator
+    def show_model_dropdown(self, *args, **kwargs):
         if self.config.api_tools.get("di_flow") is None:
             dialog = QMessageBox(self)
             dialog.setWindowTitle("PostgreSQL 配置缺失")
@@ -384,6 +383,12 @@ class JSONEditor(QWidget):
             dialog.exec_()
             return
 
+        worker = Worker(fn=self.config.api_tools.get("di_flow").call)
+        worker.signals.finished.connect(self.on_di_flow_get)
+        worker.signals.error.connect(self.on_di_flow_get)
+        self.thread_pool.start(worker)
+
+    def on_di_flow_get(self, model_names):
         menu = QMenu(self)
         menu.setStyleSheet("""
             QMenu {
@@ -398,11 +403,21 @@ class JSONEditor(QWidget):
             }
         """)
 
+        # 创建自定义标题Widget
+        title_widget = QLabel("模型列表")
+        title_widget.setAlignment(Qt.AlignCenter)  # 设置文字居中
+        title_widget.setStyleSheet("font-weight: bold; padding: 4px 0px;")
+
+        # 将标题Widget封装为QWidgetAction
+        title_action = QWidgetAction(menu)
+        title_action.setDefaultWidget(title_widget)
+        menu.addAction(title_action)
+
         # 获取当前绑定模型
         current_model = self.model_bindings.get(self.current_file)
 
         # 添加模型项
-        for model_name in self.config.api_tools.get("di_flow").call():
+        for model_name in model_names:
             action = QAction(model_name, menu)
             action.setCheckable(True)
             action.setChecked(model_name == current_model)
@@ -420,8 +435,7 @@ class JSONEditor(QWidget):
         pos = self.model_selector_btn.mapToGlobal(QPoint(0, 0))
         menu_height = menu.sizeHint().height()
         menu_width = menu.sizeHint().width()
-
-        target_pos = QPoint(pos.x() - 0.5 * menu_width, pos.y() - menu_height)
+        target_pos = QPoint(pos.x() - int(0.5 * menu_width), pos.y() - menu_height)
         menu.exec_(target_pos)
 
     def bind_model(self, model_id):
@@ -446,6 +460,7 @@ class JSONEditor(QWidget):
         if not model_id or model_id == "<无关联模型>":
             self.model_bindings.pop(self.current_file, None)
             self.model_selector_btn.setText("<无关联模型>")
+            self.model_selector_btn.setIcon(QIcon())
             self.undo_stack.push(TreeEditCommand(self, old_state, "取消模型绑定"))
             self.config.remove_binding_model_params()
             self.tree.clear()
@@ -454,25 +469,13 @@ class JSONEditor(QWidget):
         else:
             self.model_bindings[self.current_file] = model_id
             self.model_selector_btn.setText(model_id)
+            self.model_selector_btn.setIcon(get_icon("model"))
 
-        # 获取模型参数
-        model_params, param_structure, self.option2val = self.config.api_tools.get("di_flow_params").call(
-            self.model_binding_prefix, model_id)
-
-        self.model_binding_structures[self.current_file] = param_structure
-        self.config.add_binding_model_params(param_structure)
-        # 将参数合并到当前配置树中
-        merged_data = self.merge_model_params(current_data, model_params, model_id)
-
-        # 更新树
-        self.tree.clear()
-        self.load_tree(merged_data, bind_model=False)
-        self.restore_tree_state(self.current_file)
-        # 更新撤销栈
-        self.undo_stack.push(
-            TreeEditCommand(self, current_data, f"绑定模型: {model_id}"))
-
-        self.show_status_message(f"已绑定模型: {model_id}", "success")
+        self.model_bindings[self.current_file] = model_id
+        worker = Worker(self.config.api_tools.get("di_flow_params").call, self.model_binding_prefix,
+                        model_id)
+        worker.signals.finished.connect(self.on_model_binded)
+        self.thread_pool.start(worker)
 
     def merge_model_params(self, current_data, model_params, model_name):
         """将模型参数合并到当前配置中"""
@@ -486,7 +489,7 @@ class JSONEditor(QWidget):
         for param_id, param_info in model_params.items():
             name = param_info.pop("name")
             # 处理组件名称重复
-            name = f"{name} {param_id}" if name in merged[model_name] else name
+            name = get_unique_name(name, merged[model_name].keys())
             merged[model_name][name] = {}
             for keym, value in param_info.items():
                 merged[model_name][name][value.get("param_name")] = value.get("default")
@@ -667,9 +670,11 @@ class JSONEditor(QWidget):
             current_model = self.model_bindings.get(filename)
             if current_model:
                 self.model_selector_btn.setText(f"{self.model_bindings[filename]}")
+                self.model_selector_btn.setIcon(get_icon("model"))
                 self.config.add_binding_model_params(self.model_binding_structures.get(filename))
             else:
                 self.model_selector_btn.setText("<无关联模型>")
+                self.model_selector_btn.setIcon(QIcon())
                 self.config.remove_binding_model_params()
 
         # 切换逻辑
@@ -1376,8 +1381,19 @@ class JSONEditor(QWidget):
 
     def rename_file(self, old_name, new_name):
         # 更新 open_files
-        self.open_files[new_name] = self.open_files[old_name]
+        del self.file_states[old_name]
+        del self.undo_stacks[old_name]
         del self.open_files[old_name]
+        if self.current_file is not None:
+            # 1. 保存当前文件配置数据
+            self.open_files[new_name] = self.capture_tree_data()
+            # 2. 保存展开/选中状态
+            self.file_states[new_name] = self.capture_tree_state()
+            self.orig_files[new_name] = self.orig_files.pop(old_name)
+            self.file_format[new_name] = self.file_format.pop(old_name)
+            if hasattr(self, 'undo_stack'):
+                self.undo_stacks[new_name] = self.undo_stack
+
         self.current_file = new_name
         if old_name in self.model_bindings:
             self.model_bindings[new_name] = self.model_bindings.pop(old_name)
@@ -1689,19 +1705,27 @@ class JSONEditor(QWidget):
                 self.mark_item_locked(item)
 
     def load_tree(self, data, parent=None, path_prefix="", bind_model=True):
+        # 加载配置时如果有对应prefix的配置，自动关联到对应模型
+        for key in data:
+            if re.search(f"{self.model_binding_prefix}", key):
+                break
+
+        if bind_model and re.search(f"{self.model_binding_prefix}", key):
+            model_name = re.findall(rf"{self.model_binding_prefix}(.+)", key)[0]
+            if model_name != self.model_bindings.get(self.current_file):
+                self.model_bindings[self.current_file] = model_name
+                worker = Worker(self.config.api_tools.get("di_flow_params").call, self.model_binding_prefix,
+                                model_name)
+                worker.signals.finished.connect(lambda result: self.on_model_binded(result, data))
+                self.thread_pool.start(worker)
+                return
+            else:
+                self.config.add_binding_model_params(self.model_binding_structures[self.current_file])
+                self.model_selector_btn.setText(self.model_bindings.get(self.current_file))
+                self.model_selector_btn.setIcon(get_icon("model"))
+
         for key, value in data.items():
             full_path = f"{path_prefix}/{key}" if path_prefix and not re.search(r' [参数]*[0-9]+', key) else key
-            # 加载配置时如果有对应prefix的配置，自动关联到对应模型
-            if bind_model and re.search(f"{self.model_binding_prefix}", key):
-                model_name = re.findall(rf"{self.model_binding_prefix}(.+)", key)[0]
-                if model_name != self.model_bindings.get(self.current_file):
-                    model_params, param_structure, self.option2val = self.config.api_tools.get("di_flow_params").call(
-                        self.model_binding_prefix, model_name)
-                    self.model_bindings[self.current_file] = model_name
-                    self.model_binding_structures[self.current_file] = param_structure
-                    self.config.add_binding_model_params(param_structure)
-                    self.model_selector_btn.setText(model_name)
-
             if isinstance(value, list):
                 item = QTreeWidgetItem([key, list2str(value)])
 
@@ -1719,9 +1743,9 @@ class JSONEditor(QWidget):
 
                 self.lock_item(key, parent, item)
                 if re.search(r' [参数]*[0-9]+', full_path):
-                    self.load_tree(value, item, path_prefix=path_prefix)
+                    self.load_tree(value, item, path_prefix=path_prefix, bind_model=False)
                 else:
-                    self.load_tree(value, item, path_prefix=full_path)
+                    self.load_tree(value, item, path_prefix=full_path, bind_model=False)
             else:
                 item = QTreeWidgetItem([key, str(value)])
                 if parent:
@@ -1729,6 +1753,31 @@ class JSONEditor(QWidget):
                 else:
                     self.tree.addTopLevelItem(item)
                 self.lock_item(key, parent, item)
+
+    def on_model_binded(self, result, current_data=None):
+
+        current_data = self.capture_tree_data() if current_data is None else current_data
+        model_params, param_structure, self.option2val = result
+        self.model_binding_structures[self.current_file] = param_structure
+        self.config.add_binding_model_params(param_structure)
+        self.model_selector_btn.setText(self.model_bindings.get(self.current_file))
+        self.model_selector_btn.setIcon(get_icon("model"))
+
+        # 将参数合并到当前配置树中
+        cfg_path = f"{self.model_binding_prefix}{self.model_bindings.get(self.current_file)}"
+        if cfg_path in current_data:
+            del current_data[cfg_path]
+        merged_data = self.merge_model_params(current_data, model_params, self.model_bindings.get(self.current_file))
+        self.open_files[self.current_file] = merged_data
+        # 更新树
+        self.tree.clear()
+        self.load_tree(merged_data, bind_model=False)
+        self.restore_tree_state(self.current_file)
+        # 更新撤销栈
+        self.undo_stack.push(
+            TreeEditCommand(self, current_data, f"绑定模型: {self.model_bindings.get(self.current_file)}"))
+
+        self.show_status_message(f"已绑定模型: {self.model_bindings.get(self.current_file)}", "success")
 
     def add_param(self):
         item = self.tree.currentItem()

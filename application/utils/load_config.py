@@ -72,15 +72,27 @@ class ParamConfigLoader(QObject):
 
     def load_tools_async(self):
         """异步加载全部配置"""
-        logger.info("Launching asynchronous tools load")
-        worker = Worker(self.load_tools)
-        worker.signals.finished.connect(
-            lambda _: (logger.info("Tools async load finished"))
+        cfg = self._read_config()
+        cfg = cfg.get("api-tools", cfg.get("api-search", {}))
+        postgres_cfg = {"postgres": cfg.pop("postgres", {})}
+        logger.info("Launching asynchronous tools load!")
+        worker1 = Worker(self._load_tools_parallel, cfg)
+        worker1.signals.finished.connect(
+            lambda _: (logger.info("API Tools async load finished"))
         )
-        worker.signals.error.connect(
-            lambda err: logger.error("Async full load error: {}", err)
+        worker1.signals.error.connect(
+            lambda err: logger.error("Async full load api tools error: {}", err)
         )
-        self.threadpool.start(worker)
+        self.threadpool.start(worker1)
+
+        worker2 = Worker(self._load_tools_parallel, postgres_cfg)
+        worker2.signals.finished.connect(
+            lambda _: (logger.info("Database Tools async load finished"))
+        )
+        worker2.signals.error.connect(
+            lambda err: logger.error("Async full load database tools error: {}", err)
+        )
+        self.threadpool.start(worker2)
 
     def load_params_async(self):
         """异步加载全部配置"""
@@ -100,28 +112,20 @@ class ParamConfigLoader(QObject):
     # ==============================
     # 🔧 工具加载函数
     # ==============================
-    def load_tools(self):
-        """同步加载 API 工具"""
-        logger.info("Starting synchronous tool load")
-        try:
-            if os.path.exists(self.param_definitions_path):
-                cfg = self._read_config()
-                self._load_tools(cfg.get("api-search", cfg.get("api-tools", {})))
-            else:
-                logger.error(
-                    "Configuration file not found: {}", self.param_definitions_path
-                )
-        except Exception as e:
-            logger.exception("Failed to load tools")
-
-    def _load_tools(self, tools_config: dict):
-        """实际加载工具的逻辑"""
-        self.api_tools = self._load_tools_parallel(tools_config)
-
     def _load_tools_parallel(self, cfg: dict) -> dict:
         """并行加载工具实例"""
+        # 优先加载postgres工具
         logger.debug("Parallel tool load started for tools: {}", list(cfg.keys()))
         tool_list = {}
+        # 增加连接postgres数据库的工具
+        if "postgres" in cfg:
+            postgres_cfg = cfg.pop("postgres", {})
+            tool_list["di_flow"] = DiFlow(**postgres_cfg)
+            tool_list["di_flow_params"] = DiFlowParams(**postgres_cfg)
+            tool_list["di_flow_params_modify"] = DiFlowParamsModify(**postgres_cfg)
+            self.api_tools.update(tool_list)
+            return
+
         global_prefix = cfg.pop("prefix", "")
         global_api_key = cfg.pop("api-key", "")
 
@@ -152,7 +156,7 @@ class ParamConfigLoader(QObject):
             else:
                 logger.error(f"未知的工具类型: {tool_type}")
 
-        with ThreadPoolExecutor(max_workers=min(len(cfg), 10)) as executor:
+        with ThreadPoolExecutor(max_workers=10) as executor:
             future_map = {
                 executor.submit(create_searcher, name, spec): name
                 for name, spec in cfg.items()
@@ -167,13 +171,8 @@ class ParamConfigLoader(QObject):
                 except Exception as e:
                     logger.error(f"加载工具 {tool_name} 失败: {e}")
 
-        # 增加连接postgres数据库的工具
-        if "postgres" in cfg:
-            tool_list["di_flow"] = DiFlow(**cfg["postgres"])
-            tool_list["di_flow_params"] = DiFlowParams(**cfg["postgres"])
-            tool_list["di_flow_params_modify"] = DiFlowParamsModify(**cfg["postgres"])
-
-        return tool_list
+        self.api_tools.update(tool_list)
+        return
 
     # ==============================
     # 📊 参数解析函数

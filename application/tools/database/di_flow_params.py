@@ -15,6 +15,7 @@ from loguru import logger
 from psycopg2 import OperationalError
 
 from application.base import BaseTool
+from application.utils.utils import get_unique_name
 
 
 class DiFlowParams(BaseTool):
@@ -146,7 +147,7 @@ class DiFlowParams(BaseTool):
         children = {}
         for key, param in structure_params.items():
             children = children | {
-                param.pop("name"): {
+                get_unique_name(param.pop("name"), children.keys()): {
                     "type": "group",
                     "children": {
                         value.pop("param_name"): value | {"id": key}

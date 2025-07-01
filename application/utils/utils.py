@@ -126,6 +126,16 @@ def resource_path(relative_path):
     return os.path.join(base_path, relative_path)
 
 
+
+def get_unique_name(base_name, existing_names):
+    if base_name not in existing_names:
+        return base_name
+    i = 1
+    while f"{base_name}_{i}" in existing_names:
+        i += 1
+    return f"{base_name}_{i}"
+
+
 def get_icon(icon_name):
     icons = {}
     relative_path = "icons"
