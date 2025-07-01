@@ -785,7 +785,8 @@ class JSONEditor(QWidget):
         self.config.remove_binding_model_params()
         # 记录打开的配置文件
         self.open_files[name] = copy.deepcopy(self.config.init_params)
-
+        self.orig_files[name] = copy.deepcopy(self.config.init_params)
+        self.file_format[name] = "json"
         # 为新文件创建一个新的撤销栈
         self.undo_stacks[name] = QUndoStack(self)
 
@@ -1804,7 +1805,6 @@ class JSONEditor(QWidget):
                         QTimer.singleShot(2000, lambda: it.setForeground(1, QColor("black")))
 
                     cb.stateChanged.connect(lambda number, b=cb, it=item, path=full_path: on_check(b, it, path, number))
-                    self.undo_stacks[self.current_file].push(TreeEditCommand(self, old_state, f"编辑 {key}"))
                 else:
                     item = QTreeWidgetItem([key, str(value)])
                     if parent:

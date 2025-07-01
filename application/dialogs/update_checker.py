@@ -97,9 +97,10 @@ class UpdateChecker(QWidget):
 
     def _start_download(self, latest_release):
         """开始下载更新包"""
-        update_url = latest_release["assets"][0]["browser_download_url"]
+        for asset in latest_release["assets"]:
+            if asset["name"].endswith(".exe"):
+                update_url = latest_release["assets"][0]["browser_download_url"]
         self.update_path = f"参数配置工具V{latest_release['tag_name']}.exe"
-
         # 创建进度条
         self.progress_dialog = QProgressDialog("正在下载更新...", "取消", 0, 100, self)
         self.progress_dialog.setWindowTitle("更新进度")

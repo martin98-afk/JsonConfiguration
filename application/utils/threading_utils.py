@@ -128,6 +128,17 @@ class AsyncUpdateChecker(QThread):
                     self.error.emit(f"Gitee API 请求失败：{resp.status}")
                     return None
 
+    async def fetch_gitcode(self):
+        headers = {"Authorization": f"{self.token}"} if self.token else {}
+        url = f"https://gitcode.com/api/v5/repos/{self.repo}/releases/latest"
+        async with aiohttp.ClientSession(headers=headers) as session:
+            async with session.get(url, timeout=10) as resp:
+                if resp.status == 200:
+                    return await resp.json()
+                else:
+                    self.error.emit(f"Gitee API 请求失败：{resp.status}")
+                    return None
+
     def run(self):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -137,6 +148,8 @@ class AsyncUpdateChecker(QThread):
                 result = loop.run_until_complete(self.fetch_github())
             elif self.platform == "gitee":
                 result = loop.run_until_complete(self.fetch_gitee())
+            elif self.platform == "gitcode":
+                result = loop.run_until_complete(self.fetch_gitcode())
             else:
                 result = None
                 self.error.emit("不支持的平台")
