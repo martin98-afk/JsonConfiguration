@@ -1,5 +1,18 @@
 [
   {
+    "version": "1.1.2",
+    "publishDate": "2025-07-01 11:18",
+    "forceUpdate": true,
+    "publishNotes": [
+      "feat(database): 优化模型绑定逻辑并添加异步加载支持",
+      "- 在 di_flow_params.py 中引入 get_unique_name 函数，用于处理参数名称重复问题",
+      "- 在 json_editor.py 中实现模型绑定的异步加载逻辑，提高用户体验",
+      "- 优化模型选择下拉菜单的显示效果，增加标题和居中显示",
+      "- 解决文档栏重命名后上传卡死问题",
+      "- 在 load_config.py 中实现 API 工具和数据库工具的并行加载，提高启动速度",
+      "- 在 utils.py 中添加 get_unique_name 函数，用于生成唯一名称"
+    ]
+  },{
     "version": "1.1.1",
     "publishDate": "2025-06-30 18:36",
     "forceUpdate": true,
