@@ -29,7 +29,7 @@ class DiFlowParams(BaseTool):
                  parent=None):
         super().__init__(parent)
         self.type_dict = {
-            "1": "dropdown",
+            "1": "checkbox",
             "2": "dropdown",
             "10": "upload"
         }
@@ -108,7 +108,7 @@ class DiFlowParams(BaseTool):
                         if type not in ["3", "7", "8"]:  # 去除特征、标签、预测字段选择
                             if type == "1":
                                 select_options = ["否", "是"]
-                                option2val[k] = {v: k for k, v in enumerate(select_options)}
+                                option2val[k] = {vv: kk for kk, vv in enumerate(select_options)}
                                 flow_params_value[key] = flow_params_value[key] | {
                                     k: {
                                         "param_name": name,
@@ -119,7 +119,7 @@ class DiFlowParams(BaseTool):
                                 }
                             elif type == "2":
                                 options = self.get_node_params_options(conn, v[0])
-                                option2val[k] = {v: k for k, v in options.items()}
+                                option2val[k] = {vv: kk for kk, vv in options.items()}
                                 flow_params_value[key] = flow_params_value[key] | {
                                     k: {
                                         "param_name": name,
@@ -150,8 +150,8 @@ class DiFlowParams(BaseTool):
                 get_unique_name(param.pop("name"), children.keys()): {
                     "type": "group",
                     "children": {
-                        value.pop("param_name"): value | {"id": key}
-                        for key, value in param.items()
+                        v.pop("param_name"): v | {"id": k}
+                        for k, v in param.items()
                     }
                 }
             }

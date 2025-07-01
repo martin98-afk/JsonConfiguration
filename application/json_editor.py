@@ -23,7 +23,7 @@ from PyQt5.QtGui import QFont, QKeySequence
 from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QPushButton, QTreeWidgetItem, QWidget, QMenu, QSplitter, QApplication,
     QMessageBox, QScrollArea, QPlainTextEdit, QSizePolicy, QDesktopWidget, QStatusBar, QUndoStack, QUndoCommand,
-    QAction, QLabel, QWidgetAction
+    QAction, QLabel, QWidgetAction, QCheckBox
 )
 from PyQt5.QtWidgets import (
     QFileDialog, QInputDialog, QComboBox, QShortcut, QAbstractItemView, QLineEdit
@@ -469,7 +469,7 @@ class JSONEditor(QWidget):
         else:
             self.model_bindings[self.current_file] = model_id
             self.model_selector_btn.setText(model_id)
-            self.model_selector_btn.setIcon(get_icon("model"))
+            self.model_selector_btn.setIcon(get_icon("模型管理"))
 
         self.model_bindings[self.current_file] = model_id
         worker = Worker(self.config.api_tools.get("di_flow_params").call, self.model_binding_prefix,
@@ -670,7 +670,7 @@ class JSONEditor(QWidget):
             current_model = self.model_bindings.get(filename)
             if current_model:
                 self.model_selector_btn.setText(f"{self.model_bindings[filename]}")
-                self.model_selector_btn.setIcon(get_icon("model"))
+                self.model_selector_btn.setIcon(get_icon("模型管理"))
                 self.config.add_binding_model_params(self.model_binding_structures.get(filename))
             else:
                 self.model_selector_btn.setText("<无关联模型>")
@@ -1722,7 +1722,7 @@ class JSONEditor(QWidget):
             else:
                 self.config.add_binding_model_params(self.model_binding_structures[self.current_file])
                 self.model_selector_btn.setText(self.model_bindings.get(self.current_file))
-                self.model_selector_btn.setIcon(get_icon("model"))
+                self.model_selector_btn.setIcon(get_icon("模型管理"))
 
         for key, value in data.items():
             full_path = f"{path_prefix}/{key}" if path_prefix and not re.search(r' [参数]*[0-9]+', key) else key
@@ -1747,26 +1747,86 @@ class JSONEditor(QWidget):
                 else:
                     self.load_tree(value, item, path_prefix=full_path, bind_model=False)
             else:
-                item = QTreeWidgetItem([key, str(value)])
-                if parent:
-                    parent.addChild(item)
+                param_type = self.config.params_type.get(full_path)
+                if param_type == "checkbox":
+                    old_state = self.capture_tree_data()
+                    item = QTreeWidgetItem([key, str(value)])
+                    cb = QCheckBox()
+                    cb.setStyleSheet("""
+                        QCheckBox {
+                            background-color: transparent;
+                            color: #333;
+                            spacing: 8px;
+                            font-size: 18px;
+                        }
+                        QCheckBox::indicator {
+                            width: 18px;
+                            height: 18px;
+                            border: 2px solid #1890ff;
+                            border-radius: 4px;
+                            background-color: white;
+                            text-align: center;
+                        }
+                        QCheckBox::indicator:checked {
+                            background-color: #1890ff;
+                            border: 2px solid #1890ff;
+                            color: white;
+                        }
+                        QCheckBox::indicator:checked::text {
+                            content: "✔";
+                        }
+                    """)
+                    options = self.config.params_options[full_path]
+                    cb.setChecked(value == options[1])
+                    cb.setText(options[1] if value == options[1] else options[0])
+                    item.setData(1, Qt.UserRole, cb)  # 存储控件引用
+                    if parent:
+                        parent.addChild(item)
+                    else:
+                        self.tree.addTopLevelItem(item)
+                    self.tree.setItemWidget(item, 1, cb)
+
+                    # 连接事件更新值
+                    def on_check(box, it, path, number):
+                        new_val = options[1] if box.isChecked() else options[0]
+                        it.setText(1, new_val)
+                        # 如果属于关联模型配置，则同步修改数据库内容
+                        if re.search(self.model_binding_prefix, path):
+                            param_no = self.config.get_model_binding_param_no(path)
+                            option_value = self.option2val.get(param_no).get(new_val)
+                            self.config.api_tools.get("di_flow_params_modify").call(
+                                param_no=param_no,
+                                param_val=option_value
+                            )
+                        box.setText(options[1] if new_val == options[1] else options[0])
+                        # 高亮变化
+                        it.setForeground(1, QColor("#1890ff"))
+                        QTimer.singleShot(2000, lambda: it.setForeground(1, QColor("black")))
+
+                    cb.stateChanged.connect(lambda number, b=cb, it=item, path=full_path: on_check(b, it, path, number))
+                    self.undo_stacks[self.current_file].push(TreeEditCommand(self, old_state, f"编辑 {key}"))
                 else:
-                    self.tree.addTopLevelItem(item)
-                self.lock_item(key, parent, item)
+                    item = QTreeWidgetItem([key, str(value)])
+                    if parent:
+                        parent.addChild(item)
+                    else:
+                        self.tree.addTopLevelItem(item)
+                    self.lock_item(key, parent, item)
 
     def on_model_binded(self, result, current_data=None):
-
+        self.config.remove_binding_model_params()
         current_data = self.capture_tree_data() if current_data is None else current_data
         model_params, param_structure, self.option2val = result
         self.model_binding_structures[self.current_file] = param_structure
         self.config.add_binding_model_params(param_structure)
         self.model_selector_btn.setText(self.model_bindings.get(self.current_file))
-        self.model_selector_btn.setIcon(get_icon("model"))
+        self.model_selector_btn.setIcon(get_icon("模型管理"))
 
-        # 将参数合并到当前配置树中
-        cfg_path = f"{self.model_binding_prefix}{self.model_bindings.get(self.current_file)}"
-        if cfg_path in current_data:
-            del current_data[cfg_path]
+        # 去除之前关联的模型
+        current_data = {
+            key: value for key, value in current_data.items()
+            if not re.search(f"{self.model_binding_prefix}", key)
+        }
         merged_data = self.merge_model_params(current_data, model_params, self.model_bindings.get(self.current_file))
         self.open_files[self.current_file] = merged_data
         # 更新树

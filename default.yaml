@@ -130,11 +130,11 @@ param-structure:
     type: text
     default: ''
   是否保留工况:
-    type: dropdown
+    type: checkbox
     default: 否
     options:
-    - 是
     - 否
+    - 是
   实时训练数据范围(天):
     type: slider
     default: '0'
